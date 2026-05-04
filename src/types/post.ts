@@ -1,0 +1,60 @@
+import { Timestamp } from 'firebase/firestore';
+
+export interface FirestoreChat {
+  id: string;
+  participants: string[];
+  participantNames: Record<string, string>;
+  participantAvatars: Record<string, string>;
+  lastMessage: string;
+  lastMessageTime: Timestamp | null;
+  lastMessageSenderId: string;
+}
+
+export interface FirestoreChatMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: Timestamp;
+  read: boolean;
+}
+
+export interface UserProfile {
+  username: string;
+  email: string;
+  status: 'active' | 'inactive';
+  phone_number?: string;
+  avatar_url?: string;
+  createdAt: string;
+  updatedAt?: string;
+  xp: number;
+  level: number;
+  macroCalc?: {
+    weight: number;
+    height: number;
+    age: number;
+    gender: string;
+    activity: number;
+    goal: string;
+  };
+}
+
+export interface FirestorePost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  content: string;
+  imageUrl: string | null;
+  likes: string[];
+  commentsCount: number;
+  createdAt: Timestamp;
+}
+
+export interface FirestoreComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  content: string;
+  createdAt: Timestamp;
+}
