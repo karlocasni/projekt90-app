@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Search, Bell, Send, RefreshCw, AlertCircle } from 'lucide-react';
 import {
   collection,
@@ -26,19 +26,32 @@ const SECONDARY_TABS = [
 
 export default function Feed() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState<FirestorePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('Sve');
+  const [isSearchOpen, setIsSearchOpen] = useState(searchParams.get('search') === 'true');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('search') === 'true') {
+      setIsSearchOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const subscribe = useCallback(() => {
     setLoading(true);
     setError(null);
 
+    // Increase limit when searching to find more relevant posts
+    const fetchLimit = searchQuery ? 100 : 20;
+
     const q = query(
       collection(db, 'posts'),
       orderBy('createdAt', 'desc'),
-      limit(20),
+      limit(fetchLimit),
     );
 
     const unsubscribe = onSnapshot(
@@ -67,7 +80,7 @@ export default function Feed() {
     );
 
     return unsubscribe;
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
     const unsubscribe = subscribe();
@@ -78,38 +91,88 @@ export default function Feed() {
     subscribe();
   };
 
-  const filteredPosts =
-    activeCategory === 'Sve'
-      ? posts
-      : posts.filter((p) => p.category === activeCategory);
+  const filteredPosts = posts.filter((post) => {
+    // 1. Category filter
+    if (activeCategory !== 'Sve' && post.category !== activeCategory) return false;
+
+    // 2. Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      
+      // Handle @username search
+      if (q.startsWith('@')) {
+        const targetUser = q.slice(1);
+        return post.authorName.toLowerCase().includes(targetUser);
+      }
+      
+      // Handle text search (content or title)
+      const contentMatch = post.content.toLowerCase().includes(q);
+      const titleMatch = post.title?.toLowerCase().includes(q);
+      return contentMatch || titleMatch;
+    }
+
+    return true;
+  });
 
   return (
     <div className="flex flex-col">
       {/* Desktop-only secondary bar — only visible on /feed */}
       <header className="hidden md:flex items-center gap-4 px-6 py-3 glass sticky top-16 z-40">
-        <h1 className="text-2xl font-black tracking-tighter flex-shrink-0">ZAJEDNICA</h1>
+        {!isSearchOpen ? (
+          <>
+            <h1 className="text-2xl font-black tracking-tighter flex-shrink-0">ZAJEDNICA</h1>
 
-        {/* Scrollable tabs */}
-        <div className="flex-1 flex items-end gap-0 overflow-x-auto scrollbar-none">
-          {SECONDARY_TABS.map((tab) => (
-            <Link
-              key={tab.path}
-              to={tab.path}
-              className={cn(
-                'whitespace-nowrap px-4 py-1.5 text-sm border-b-2 transition-colors flex-shrink-0',
-                location.pathname === tab.path
-                  ? 'text-white font-bold border-primary'
-                  : 'text-white/50 hover:text-white border-transparent',
-              )}
+            {/* Scrollable tabs */}
+            <div className="flex-1 flex items-end gap-0 overflow-x-auto scrollbar-none">
+              {SECONDARY_TABS.map((tab) => (
+                <Link
+                  key={tab.path}
+                  to={tab.path}
+                  className={cn(
+                    'whitespace-nowrap px-4 py-1.5 text-sm border-b-2 transition-colors flex-shrink-0',
+                    location.pathname === tab.path
+                      ? 'text-white font-bold border-primary'
+                      : 'text-white/50 hover:text-white border-transparent',
+                  )}
+                >
+                  {tab.label}
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
+            <Search className="w-5 h-5 text-primary" />
+            <input
+              autoFocus
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Pretraži objave ili koristi @korisnik..."
+              className="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder:text-muted-foreground/50 text-white"
+            />
+            <button 
+              onClick={() => {
+                setIsSearchOpen(false);
+                setSearchQuery('');
+              }}
+              className="text-xs font-bold text-muted-foreground hover:text-white transition-colors"
             >
-              {tab.label}
-            </Link>
-          ))}
-        </div>
+              ZATVORI
+            </button>
+          </div>
+        )}
 
         {/* Right icons */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <Search className="w-5 h-5 text-muted-foreground" />
+          {!isSearchOpen && (
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+          )}
           <Bell className="w-5 h-5 text-muted-foreground" />
           <Link
             to="/messages"
@@ -124,22 +187,58 @@ export default function Feed() {
       <div className="py-4 md:py-6 space-y-4">
         <CreatePost />
 
-        {/* Category filter pills */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-          {FEED_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={cn(
-                'whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0',
-                activeCategory === cat
-                  ? 'bg-primary text-black'
-                  : 'border border-white/20 text-muted-foreground hover:border-white/40 hover:text-white',
-              )}
-            >
-              {cat}
-            </button>
-          ))}
+        {/* Search & Category filter pills */}
+        <div className="space-y-4">
+          {/* Mobile Search Toggle */}
+          <div className="md:hidden flex items-center justify-between gap-4">
+            {!isSearchOpen ? (
+              <button 
+                onClick={() => setIsSearchOpen(true)}
+                className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors"
+              >
+                <Search className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-widest">Pretraži</span>
+              </button>
+            ) : (
+              <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 animate-in fade-in zoom-in-95 duration-200">
+                <Search className="w-4 h-4 text-primary" />
+                <input
+                  autoFocus
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Pretraži..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white p-0"
+                />
+                <button 
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    setSearchQuery('');
+                  }}
+                  className="text-[10px] font-black text-muted-foreground uppercase"
+                >
+                  Zatvori
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
+            {FEED_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  'whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0',
+                  activeCategory === cat
+                    ? 'bg-primary text-black'
+                    : 'border border-white/20 text-muted-foreground hover:border-white/40 hover:text-white',
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-4">

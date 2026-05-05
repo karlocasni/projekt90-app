@@ -3,14 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Phone, Mail, Camera, ShieldCheck, LogOut, ArrowLeft } from 'lucide-react';
 import { db, storage } from '../lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import XPBadge from '../components/ui/XPBadge';
 import { UserProfile } from '../types/post';
 import { calculateLevel } from '../lib/xp';
 
 export default function Profile() {
-  const { userId: paramId } = useParams();
+  const { userId: paramId, username: paramUsername } = useParams();
   const navigate = useNavigate();
   const { user, profile: myProfile, signOut } = useAuth();
   
@@ -27,7 +27,7 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Determine if we are looking at our own profile
-  const isOwnProfile = !paramId || paramId === user?.uid;
+  const isOwnProfile = (!paramId && !paramUsername) || paramId === user?.uid || (paramUsername && paramUsername === myProfile?.username);
 
   useEffect(() => {
     async function fetchUser() {
@@ -46,6 +46,23 @@ export default function Profile() {
           }
         } catch (err) {
           console.error('Error fetching profile:', err);
+        } finally {
+          setFetchingProfile(false);
+        }
+      } else if (paramUsername) {
+        setFetchingProfile(true);
+        try {
+          const q = query(
+            collection(db, 'profiles'),
+            where('username', '==', paramUsername),
+            limit(1)
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            setViewedProfile(snap.docs[0].data() as UserProfile);
+          }
+        } catch (err) {
+          console.error('Error fetching profile by username:', err);
         } finally {
           setFetchingProfile(false);
         }

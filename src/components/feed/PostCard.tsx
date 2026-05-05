@@ -31,9 +31,13 @@ function renderWithMentions(content: string): React.ReactNode {
   const parts = content.split(/(@\w+)/g);
   return parts.map((part, i) =>
     /^@\w+$/.test(part) ? (
-      <span key={i} className="text-primary font-bold">
+      <Link
+        key={i}
+        to={`/profile/u/${part.slice(1)}`}
+        className="text-primary font-bold hover:underline"
+      >
         {part}
-      </span>
+      </Link>
     ) : (
       part
     ),
@@ -274,9 +278,11 @@ export default function PostCard({ post }: PostCardProps) {
           {post.title ? (
             <>
               <h2 className="font-heading font-black text-base uppercase leading-tight mb-1">
-                {post.title}
+                {renderWithMentions(post.title)}
               </h2>
-              <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {renderWithMentions(post.content)}
+              </p>
             </>
           ) : (
             <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">

@@ -33,6 +33,23 @@ function replaceMention(text: string, cursorPos: number, username: string): stri
   return newBefore + after;
 }
 
+function renderWithMentions(content: string): React.ReactNode {
+  const parts = content.split(/(@\w+)/g);
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <Link
+        key={i}
+        to={`/profile/u/${part.slice(1)}`}
+        className="text-primary font-bold hover:underline"
+      >
+        {part}
+      </Link>
+    ) : (
+      part
+    ),
+  );
+}
+
 interface CommentSectionProps {
   postId: string;
   postAuthorId: string;
@@ -233,7 +250,7 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
                 >
                   {c.authorName}
                 </Link>
-                <p className="text-sm text-foreground/80">{c.content}</p>
+                <p className="text-sm text-foreground/80">{renderWithMentions(c.content)}</p>
               </div>
             </div>
           ))
