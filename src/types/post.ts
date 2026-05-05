@@ -28,6 +28,7 @@ export interface UserProfile {
   updatedAt?: string;
   xp: number;
   level: number;
+  isAdmin?: boolean;
   macroCalc?: {
     weight: number;
     height: number;
@@ -48,6 +49,9 @@ export interface FirestorePost {
   likes: string[];
   commentsCount: number;
   createdAt: Timestamp;
+  title?: string;
+  pinned?: boolean;
+  category?: string;
 }
 
 export interface FirestoreComment {

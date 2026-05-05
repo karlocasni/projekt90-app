@@ -7,6 +7,9 @@ import Training from './pages/Training';
 import Profile from './pages/Profile';
 import Progress from './pages/Progress';
 import Messages from './pages/Messages';
+import Challenges from './pages/Challenges';
+import LeaderboardPage from './pages/Leaderboard';
+import Members from './pages/Members';
 import { useAuth } from './contexts/AuthContext';
 import { useState } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -94,6 +97,9 @@ function AppRoutes() {
           <Route path="/profile/:userId" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:chatId" element={<Messages />} />
+          <Route path="/challenges" element={<Challenges />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/members" element={<Members />} />
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </Routes>
       </ErrorBoundary>

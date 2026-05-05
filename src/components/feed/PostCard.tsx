@@ -1,6 +1,13 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { MessageSquare, Share2, MoreHorizontal, Flame, MessageCircle } from 'lucide-react';
+import {
+  MessageSquare,
+  Share2,
+  MoreHorizontal,
+  Flame,
+  MessageCircle,
+  Pin,
+} from 'lucide-react';
 import {
   updateDoc,
   doc,
@@ -18,6 +25,20 @@ import { FirestorePost, UserProfile } from '../../types/post';
 import { cn } from '../../lib/utils';
 import CommentSection from './CommentSection';
 import { awardXP } from '../../lib/xp';
+import { createNotification } from '../../lib/notifications';
+
+function renderWithMentions(content: string): React.ReactNode {
+  const parts = content.split(/(@\w+)/g);
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <span key={i} className="text-primary font-bold">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  );
+}
 
 function formatRelativeTime(timestamp: Timestamp | null | undefined): string {
   if (!timestamp) return '';
@@ -47,16 +68,17 @@ export default function PostCard({ post }: PostCardProps) {
   const { user, profile } = useAuth();
   const { getProfile } = useProfileCache();
   const navigate = useNavigate();
-  
+
   const [showComments, setShowComments] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Get latest avatar from cache, fallback to post data
   const cachedProfile = getProfile(post.authorId);
   const currentAvatar = cachedProfile?.avatar_url || post.authorAvatar;
   const currentName = cachedProfile?.username || post.authorName;
+
+  const dicebearUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentName}`;
 
   const initDM = async () => {
     if (!user || !profile || user.uid === post.authorId) return;
@@ -91,7 +113,6 @@ export default function PostCard({ post }: PostCardProps) {
       text: post.content,
       url: window.location.href,
     };
-
     try {
       if (navigator.share) {
         await navigator.share(shareData);
@@ -108,9 +129,7 @@ export default function PostCard({ post }: PostCardProps) {
     if (!window.confirm('Jesi li siguran da želiš obrisati ovu objavu?')) return;
     setDeleting(true);
     try {
-      // For this app, we'll do a hard delete to keep the feed clean
       await updateDoc(doc(db, 'posts', post.id), { status: 'deleted' });
-      // Note: You might want to filter queries by status != 'deleted'
     } catch (err) {
       console.error('Delete failed:', err);
       alert('Greška pri brisanju.');
@@ -141,6 +160,15 @@ export default function PostCard({ post }: PostCardProps) {
         } catch (xpErr) {
           console.warn('Failed to award XP for like:', xpErr);
         }
+        createNotification({
+          recipientId: post.authorId,
+          senderId: user.uid,
+          senderName: profile?.username || 'Projekt90 Član',
+          senderAvatar: profile?.avatar_url || dicebearUrl,
+          type: 'like',
+          message: `${profile?.username || 'Projekt90 Član'} je reagirao na tvoju objavu`,
+          postId: post.id,
+        }).catch((err) => console.warn('Like notification failed:', err));
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
@@ -149,46 +177,67 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const profilePath = user?.uid === post.authorId ? '/profile' : `/profile/${post.authorId}`;
+
   return (
-    <div className={cn(
-      "ursa-card overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all",
-      deleting && "opacity-50 grayscale pointer-events-none"
-    )}>
-      {/* Header */}
-      <div className="p-6 flex items-center justify-between relative">
-        <Link 
-          to={user?.uid === post.authorId ? '/profile' : `/profile/${post.authorId}`}
-          className="flex items-center gap-3 group"
-        >
+    <div
+      className={cn(
+        'ursa-card overflow-hidden transition-colors hover:border-primary/50',
+        deleting && 'opacity-50 grayscale pointer-events-none',
+      )}
+    >
+      {/* Compact header */}
+      <div className="p-4 flex items-center gap-3">
+        <Link to={profilePath} className="flex-shrink-0">
           <img
-            src={currentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentName}`}
-            className="w-12 h-12 rounded-full border border-white/10 object-cover group-hover:border-primary/50 transition-colors"
+            src={currentAvatar || dicebearUrl}
+            className="w-9 h-9 rounded-full border border-white/10 object-cover hover:border-primary/50 transition-colors"
             alt={currentName}
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src =
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentName}`;
+              (e.currentTarget as HTMLImageElement).src = dicebearUrl;
             }}
           />
-          <div>
-            <h3 className="font-bold text-base leading-none mb-1 group-hover:text-primary transition-colors">{currentName}</h3>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-              {formatRelativeTime(post.createdAt)}
-            </p>
-          </div>
         </Link>
-        <div className="flex items-center gap-1">
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Link
+              to={profilePath}
+              className="font-bold text-sm hover:text-primary transition-colors leading-none"
+            >
+              {currentName}
+            </Link>
+            <span className="text-muted-foreground text-xs">·</span>
+            <span className="text-muted-foreground text-xs">
+              {formatRelativeTime(post.createdAt)}
+            </span>
+            {post.pinned && (
+              <span className="inline-flex items-center gap-1 bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded font-bold">
+                <Pin size={10} />
+                PRIKVAČENO
+              </span>
+            )}
+          </div>
+          {post.category && (
+            <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">
+              {post.category}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 flex-shrink-0">
           {user && user.uid !== post.authorId && (
             <button
               onClick={initDM}
-              className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-white/5"
+              className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-white/5"
             >
               <MessageCircle className="w-4 h-4" />
             </button>
           )}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowOptions(!showOptions)}
-              className="p-2 text-muted-foreground hover:text-white transition-colors"
+              className="p-1.5 text-muted-foreground hover:text-white transition-colors"
             >
               <MoreHorizontal className="w-5 h-5" />
             </button>
@@ -219,59 +268,72 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="px-6 pb-4">
-        <p className="text-foreground/90 text-base leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
+      {/* Content: text left, thumbnail right if image exists */}
+      <div className="px-4 pb-3 flex gap-3">
+        <div className="flex-1 min-w-0">
+          {post.title ? (
+            <>
+              <h2 className="font-heading font-black text-base uppercase leading-tight mb-1">
+                {post.title}
+              </h2>
+              <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
+            </>
+          ) : (
+            <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+              {renderWithMentions(post.content)}
+            </p>
+          )}
+        </div>
         {post.imageUrl && (
-          <div className="rounded-2xl overflow-hidden border border-white/5 mb-4 bg-white/5">
-            <img
-              src={post.imageUrl}
-              className="w-full h-auto object-cover max-h-[500px]"
-              alt="Post content"
-              loading="lazy"
-            />
-          </div>
+          <img
+            src={post.imageUrl}
+            className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
+            loading="lazy"
+            alt="Post slika"
+          />
         )}
       </div>
 
-      {/* Actions */}
-      <div className="px-6 py-4 flex items-center justify-between border-t border-white/5 bg-white/[0.01]">
-        <div className="flex items-center gap-6">
-          <button
-            onClick={toggleLike}
-            disabled={!user || likeLoading}
-            className={cn(
-              'flex items-center gap-2 transition-all disabled:opacity-50',
-              isLiked ? 'text-primary scale-110' : 'text-muted-foreground hover:text-white',
-            )}
-          >
-            <Flame className={cn('w-5 h-5', isLiked && 'fill-current')} />
-            <span className="text-sm font-black">{likes.length}</span>
-          </button>
-
-          <button
-            onClick={() => setShowComments((prev) => !prev)}
-            className={cn(
-              'flex items-center gap-2 transition-colors',
-              showComments ? 'text-primary' : 'text-muted-foreground hover:text-white',
-            )}
-          >
-            <MessageSquare className="w-5 h-5" />
-            <span className="text-sm font-black">{post.commentsCount ?? 0}</span>
-          </button>
-        </div>
-
-        <button 
-          onClick={handleShare}
-          className="p-2 text-muted-foreground hover:text-white transition-colors"
+      {/* Footer */}
+      <div className="px-4 py-3 flex items-center gap-4 border-t border-white/5">
+        <button
+          onClick={toggleLike}
+          disabled={!user || likeLoading}
+          className={cn(
+            'flex items-center gap-1.5 transition-all disabled:opacity-50 text-sm font-black',
+            isLiked ? 'text-primary' : 'text-muted-foreground hover:text-white',
+          )}
         >
-          <Share2 className="w-5 h-5" />
+          <Flame className={cn('w-4 h-4', isLiked && 'fill-current')} />
+          {likes.length}
         </button>
+
+        <button
+          onClick={() => setShowComments((prev) => !prev)}
+          className={cn(
+            'flex items-center gap-1.5 transition-colors text-sm font-black',
+            showComments ? 'text-primary' : 'text-muted-foreground hover:text-white',
+          )}
+        >
+          <MessageSquare className="w-4 h-4" />
+          {post.commentsCount ?? 0}
+        </button>
+
+        <button
+          onClick={handleShare}
+          className="p-1 text-muted-foreground hover:text-white transition-colors ml-auto"
+        >
+          <Share2 className="w-4 h-4" />
+        </button>
+
+        <span className="text-primary text-xs font-medium">
+          {formatRelativeTime(post.createdAt)}
+        </span>
       </div>
 
       {showComments && (
-        <div className="px-6 pb-6 border-t border-white/5">
-          <CommentSection postId={post.id} />
+        <div className="px-4 pb-4 border-t border-white/5">
+          <CommentSection postId={post.id} postAuthorId={post.authorId} />
         </div>
       )}
     </div>

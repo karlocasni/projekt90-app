@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Play, Lock, Clock, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Play, Lock, Clock, CheckCircle2, ChevronRight, Bell } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
+import { createNotification } from '../lib/notifications';
 
 interface Lecture {
   id: string;
@@ -44,8 +47,38 @@ const mockLectures: Lecture[] = [
 ];
 
 export default function Lectures() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [notifying, setNotifying] = useState(false);
+
+  const notifyAll = async () => {
+    if (!user || notifying) return;
+    setNotifying(true);
+    try {
+      const snap = await getDocs(collection(db, 'profiles'));
+      const senderName = profile?.username || 'Admin';
+      const senderAvatar =
+        profile?.avatar_url ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderName}`;
+      await Promise.all(
+        snap.docs.map((d) =>
+          createNotification({
+            recipientId: d.id,
+            senderId: user.uid,
+            senderName,
+            senderAvatar,
+            type: 'new_lesson',
+            message: 'Dostupna je nova lekcija! Provjeri bazu znanja.',
+            postId: null,
+          }).catch((err) => console.warn('Notify failed for', d.id, err)),
+        ),
+      );
+    } catch (err) {
+      console.error('notifyAll failed:', err);
+    } finally {
+      setNotifying(false);
+    }
+  };
 
   // Safely parse createdAt — fall back to now if empty/invalid
   const getSignupDate = (): Date => {
@@ -120,9 +153,21 @@ export default function Lectures() {
 
   return (
     <div className="p-4 md:p-10 max-w-7xl mx-auto">
-      <h1 className="text-4xl md:text-5xl font-black mb-10 uppercase tracking-tighter">
-        Baza <span className="text-primary">Znanja</span>
-      </h1>
+      <div className="flex items-center justify-between mb-10">
+        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
+          Baza <span className="text-primary">Znanja</span>
+        </h1>
+        {profile?.isAdmin && (
+          <button
+            onClick={notifyAll}
+            disabled={notifying}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-black bg-primary/20 text-primary rounded-full hover:bg-primary/30 transition-colors disabled:opacity-50"
+          >
+            <Bell className="w-3.5 h-3.5" />
+            {notifying ? 'Slanje...' : 'Obavijesti članove'}
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {mockLectures.map((l) => {
           const locked = isLocked(l.daysToUnlock);

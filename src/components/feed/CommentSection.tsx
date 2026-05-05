@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, Loader2 } from 'lucide-react';
 import {
@@ -16,13 +16,39 @@ import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FirestoreComment } from '../../types/post';
 import { awardXP } from '../../lib/xp';
+import { createNotification, createMentionNotifications } from '../../lib/notifications';
+import { useMemberSearch } from '../../hooks/useMemberSearch';
+import MentionDropdown from '../ui/MentionDropdown';
 
-export default function CommentSection({ postId }: { postId: string }) {
+function getActiveMention(text: string, cursorPos: number): string | null {
+  const before = text.slice(0, cursorPos);
+  const match = before.match(/@(\w*)$/);
+  return match ? match[1] : null;
+}
+
+function replaceMention(text: string, cursorPos: number, username: string): string {
+  const before = text.slice(0, cursorPos);
+  const after = text.slice(cursorPos);
+  const newBefore = before.replace(/@\w*$/, `@${username} `);
+  return newBefore + after;
+}
+
+interface CommentSectionProps {
+  postId: string;
+  postAuthorId: string;
+}
+
+export default function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
   const { user, profile } = useAuth();
   const [comments, setComments] = useState<FirestoreComment[]>([]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loadingComments, setLoadingComments] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [activeMention, setActiveMention] = useState<string | null>(null);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const mentionResults = useMemberSearch(activeMention ?? '');
 
   useEffect(() => {
     const q = query(
@@ -49,11 +75,36 @@ export default function CommentSection({ postId }: { postId: string }) {
     profile?.avatar_url ||
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username || 'user'}`;
 
+  const handleCommentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setComment(val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const mention = getActiveMention(val, cursor);
+    if (mention !== null) {
+      setActiveMention(mention);
+      const rect = inputRef.current?.getBoundingClientRect();
+      if (rect) {
+        setMentionPos({ top: rect.top - 220, left: rect.left });
+      }
+    } else {
+      setActiveMention(null);
+    }
+  };
+
+  const handleMentionSelect = (username: string) => {
+    const cursor = inputRef.current?.selectionStart ?? comment.length;
+    const newComment = replaceMention(comment, cursor, username);
+    setComment(newComment);
+    setActiveMention(null);
+    inputRef.current?.focus();
+  };
+
   const handleSubmit = async () => {
     if (!comment.trim() || !user || submitting) return;
     setSubmitting(true);
     const trimmed = comment.trim();
-    setComment(''); // Optimistic clear
+    setComment('');
+    setActiveMention(null);
 
     try {
       await addDoc(collection(db, 'posts', postId, 'comments'), {
@@ -64,20 +115,40 @@ export default function CommentSection({ postId }: { postId: string }) {
         createdAt: serverTimestamp(),
       });
 
-      // Update post comment count — non-blocking
       updateDoc(doc(db, 'posts', postId), {
         commentsCount: increment(1),
       }).catch((err) => console.warn('Failed to update commentsCount:', err));
 
-      // Award XP — non-blocking
       if (profile && !user.uid.startsWith('mock-')) {
         awardXP(user.uid, 10, profile.xp ?? 0).catch((err) =>
           console.warn('XP award failed:', err),
         );
+
+        const senderName = profile.username || 'Projekt90 Član';
+
+        createMentionNotifications(
+          trimmed,
+          user.uid,
+          senderName,
+          avatarUrl,
+          postId,
+        ).catch((err) => console.warn('Mention notifications failed:', err));
+
+        if (user.uid !== postAuthorId) {
+          createNotification({
+            recipientId: postAuthorId,
+            senderId: user.uid,
+            senderName,
+            senderAvatar: avatarUrl,
+            type: 'comment',
+            message: `${senderName} je komentirao tvoju objavu`,
+            postId,
+          }).catch((err) => console.warn('Comment notification failed:', err));
+        }
       }
     } catch (err) {
       console.error('Failed to add comment:', err);
-      setComment(trimmed); // Restore if failed
+      setComment(trimmed);
     } finally {
       setSubmitting(false);
     }
@@ -92,11 +163,14 @@ export default function CommentSection({ postId }: { postId: string }) {
         </div>
         <div className="flex-1 relative">
           <input
+            ref={inputRef}
             type="text"
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={handleCommentChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Escape') {
+                setActiveMention(null);
+              } else if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
               }
@@ -118,6 +192,15 @@ export default function CommentSection({ postId }: { postId: string }) {
           </button>
         </div>
       </div>
+
+      {/* Mention dropdown */}
+      {activeMention !== null && mentionResults.length > 0 && (
+        <MentionDropdown
+          users={mentionResults}
+          onSelect={handleMentionSelect}
+          position={mentionPos}
+        />
+      )}
 
       {/* Comment list */}
       <div className="space-y-4">
@@ -144,7 +227,7 @@ export default function CommentSection({ postId }: { postId: string }) {
                 />
               </Link>
               <div className="flex-1 bg-white/5 rounded-2xl px-4 py-3">
-                <Link 
+                <Link
                   to={user?.uid === c.authorId ? '/profile' : `/profile/${c.authorId}`}
                   className="font-bold text-sm block mb-1 hover:text-primary transition-colors"
                 >

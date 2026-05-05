@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Search, Bell, Send, RefreshCw, AlertCircle } from 'lucide-react';
 import {
   collection,
@@ -13,12 +13,23 @@ import { FirestorePost } from '../types/post';
 import PostCard from '../components/feed/PostCard';
 import CreatePost from '../components/feed/CreatePost';
 import SkeletonCard from '../components/ui/SkeletonCard';
-import Leaderboard from '../components/feed/Leaderboard';
+import { cn } from '../lib/utils';
+
+const FEED_CATEGORIES = ['Sve', 'Opća rasprava', 'Lekcije', 'Napredak', 'Pobjede'];
+
+const SECONDARY_TABS = [
+  { label: 'Trening', path: '/training' },
+  { label: 'Izazovi', path: '/challenges' },
+  { label: 'Rang lista', path: '/leaderboard' },
+  { label: 'Članovi', path: '/members' },
+];
 
 export default function Feed() {
+  const location = useLocation();
   const [posts, setPosts] = useState<FirestorePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('Sve');
 
   const subscribe = useCallback(() => {
     setLoading(true);
@@ -42,7 +53,6 @@ export default function Feed() {
       },
       (err) => {
         console.warn('Feed snapshot error:', err.code, err.message);
-        // If the query requires an index that doesn't exist yet, fall back gracefully
         if (err.code === 'failed-precondition') {
           setError(
             'Firestore indeks se još gradi. Pričekaj nekoliko minuta i pokušaj ponovo.',
@@ -68,12 +78,37 @@ export default function Feed() {
     subscribe();
   };
 
+  const filteredPosts =
+    activeCategory === 'Sve'
+      ? posts
+      : posts.filter((p) => p.category === activeCategory);
+
   return (
-    <div className="flex flex-col min-h-screen pb-20 md:pb-0">
-      {/* Section header */}
-      <header className="flex items-center justify-between px-6 py-4 glass sticky top-0 z-40">
-        <h1 className="text-2xl font-black tracking-tighter">ZAJEDNICA</h1>
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col">
+      {/* Desktop-only secondary bar — only visible on /feed */}
+      <header className="hidden md:flex items-center gap-4 px-6 py-3 glass sticky top-16 z-40">
+        <h1 className="text-2xl font-black tracking-tighter flex-shrink-0">ZAJEDNICA</h1>
+
+        {/* Scrollable tabs */}
+        <div className="flex-1 flex items-end gap-0 overflow-x-auto scrollbar-none">
+          {SECONDARY_TABS.map((tab) => (
+            <Link
+              key={tab.path}
+              to={tab.path}
+              className={cn(
+                'whitespace-nowrap px-4 py-1.5 text-sm border-b-2 transition-colors flex-shrink-0',
+                location.pathname === tab.path
+                  ? 'text-white font-bold border-primary'
+                  : 'text-white/50 hover:text-white border-transparent',
+              )}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Right icons */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           <Search className="w-5 h-5 text-muted-foreground" />
           <Bell className="w-5 h-5 text-muted-foreground" />
           <Link
@@ -86,47 +121,59 @@ export default function Feed() {
         </div>
       </header>
 
-      <div className="flex-1 w-full px-4 pt-6">
-        <div className="max-w-5xl mx-auto flex gap-6 items-start">
-          {/* Feed column */}
-          <main className="flex-1 min-w-0 space-y-6">
-            <CreatePost />
+      <div className="py-4 md:py-6 space-y-4">
+        <CreatePost />
 
-            <div className="space-y-6">
-              {loading ? (
-                <>
-                  <SkeletonCard />
-                  <SkeletonCard />
-                  <SkeletonCard />
-                </>
-              ) : error ? (
-                <div className="glass rounded-3xl p-10 text-center border border-red-500/20">
-                  <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-                  <p className="text-red-400 text-sm mb-4 font-medium">{error}</p>
-                  <button
-                    onClick={handleRetry}
-                    className="flex items-center gap-2 px-5 py-2 bg-primary text-black rounded-full font-black text-sm hover:opacity-90 transition-opacity mx-auto"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Pokušaj ponovo
-                  </button>
-                </div>
-              ) : posts.length === 0 ? (
-                <div className="glass rounded-3xl p-12 text-center border border-white/5">
-                  <p className="text-muted-foreground text-sm">
-                    Još nema objava. Budi prvi!
-                  </p>
-                </div>
-              ) : (
-                posts.map((post) => <PostCard key={post.id} post={post} />)
+        {/* Category filter pills */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+          {FEED_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={cn(
+                'whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0',
+                activeCategory === cat
+                  ? 'bg-primary text-black'
+                  : 'border border-white/20 text-muted-foreground hover:border-white/40 hover:text-white',
               )}
-            </div>
-          </main>
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
 
-          {/* Leaderboard sidebar — desktop only */}
-          <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-20">
-            <Leaderboard />
-          </aside>
+        <div className="space-y-4">
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : error ? (
+            <div className="glass rounded-3xl p-10 text-center border border-red-500/20">
+              <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+              <p className="text-red-400 text-sm mb-4 font-medium">{error}</p>
+              <button
+                onClick={handleRetry}
+                className="flex items-center gap-2 px-5 py-2 bg-primary text-black rounded-full font-black text-sm hover:opacity-90 transition-opacity mx-auto"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Pokušaj ponovo
+              </button>
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="glass rounded-3xl p-12 text-center border border-white/5">
+              <p className="text-muted-foreground text-sm">Još nema objava. Budi prvi!</p>
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="glass rounded-3xl p-12 text-center border border-white/5">
+              <p className="text-muted-foreground text-sm">
+                Nema objava u kategoriji &ldquo;{activeCategory}&rdquo;.
+              </p>
+            </div>
+          ) : (
+            filteredPosts.map((post) => <PostCard key={post.id} post={post} />)
+          )}
         </div>
       </div>
     </div>
