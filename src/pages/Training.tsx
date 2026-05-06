@@ -62,7 +62,7 @@ export default function Training() {
   }, [profile, loaded]);
 
   const handleLogWorkout = async (dayName: string) => {
-    if (!user || !profile || loggedToday.has(dayName)) return;
+    if (!user || !profile || user.uid === 'mock-123' || loggedToday.has(dayName)) return;
     setLoggingDay(dayName);
     try {
       await awardXP(user.uid, 25, profile.xp ?? 0);
@@ -90,7 +90,7 @@ export default function Training() {
   const macros = calculateMacros();
 
   const saveMacros = async () => {
-    if (!user) return;
+    if (!user || user.uid === 'mock-123') return;
     setSavingMacros(true);
     try {
       await setDoc(doc(db, 'profiles', user.uid), { macroCalc: calc }, { merge: true });

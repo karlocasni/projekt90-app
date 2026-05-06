@@ -35,6 +35,11 @@ export default function Members() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!currentUser || currentUser.uid === 'mock-123') {
+      setLoading(false);
+      return;
+    }
+
     const q = query(collection(db, 'profiles'), orderBy('createdAt', 'desc'), limit(50));
     const unsubscribe = onSnapshot(
       q,

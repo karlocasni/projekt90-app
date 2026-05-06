@@ -14,6 +14,7 @@ import PostCard from '../components/feed/PostCard';
 import CreatePost from '../components/feed/CreatePost';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 const FEED_CATEGORIES = ['Sve', 'Opća rasprava', 'Lekcije', 'Napredak', 'Pobjede'];
 
@@ -25,6 +26,7 @@ const SECONDARY_TABS = [
 ];
 
 export default function Feed() {
+  const { user: currentUser } = useAuth();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState<FirestorePost[]>([]);
@@ -44,6 +46,12 @@ export default function Feed() {
   const subscribe = useCallback(() => {
     setLoading(true);
     setError(null);
+
+    // Only start listener if we have a real Firebase user
+    if (!currentUser || currentUser.uid === 'mock-123') {
+      setLoading(false);
+      return;
+    }
 
     // Increase limit when searching to find more relevant posts
     const fetchLimit = searchQuery ? 100 : 20;

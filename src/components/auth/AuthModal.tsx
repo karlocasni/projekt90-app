@@ -41,7 +41,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
       onClose();
     } catch (err: any) {
-      alert(err.message);
+      let message = err.message;
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        message = 'Pogrešan email ili lozinka. Provjerite podatke ili se registrirajte.';
+      } else if (err.code === 'auth/email-already-in-use') {
+        message = 'Ovaj email se već koristi. Pokušajte se prijaviti.';
+      } else if (err.code === 'auth/weak-password') {
+        message = 'Lozinka mora imati barem 6 znakova.';
+      }
+      alert(message);
     } finally {
       setLoading(false);
     }

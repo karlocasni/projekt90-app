@@ -28,6 +28,12 @@ export default function LeaderboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Only start listener if we have a real Firebase user
+    if (!currentUser || currentUser.uid === 'mock-123') {
+      setLoading(false);
+      return;
+    }
+
     const q = query(collection(db, 'profiles'), orderBy('xp', 'desc'), limit(20));
     const unsubscribe = onSnapshot(
       q,
