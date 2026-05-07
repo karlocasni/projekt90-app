@@ -29,6 +29,7 @@ export interface UserProfile {
   xp: number;
   level: number;
   isAdmin?: boolean;
+  offsetDays?: number;
   macroCalc?: {
     weight: number;
     height: number;
@@ -46,12 +47,26 @@ export interface FirestorePost {
   authorAvatar: string;
   content: string;
   imageUrl: string | null;
+  videoUrl?: string | null;
   likes: string[];
   commentsCount: number;
   createdAt: Timestamp;
   title?: string;
   pinned?: boolean;
   category?: string;
+}
+
+export interface ChallengeSubmission {
+  id: string;
+  challengeId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  message: string;
+  mediaUrl?: string | null;
+  mediaType?: 'image' | 'video';
+  createdAt: Timestamp;
+  isWinner?: boolean;
 }
 
 export interface FirestoreComment {

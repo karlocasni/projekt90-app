@@ -13,9 +13,11 @@ import Members from './pages/Members';
 import { useAuth } from './contexts/AuthContext';
 import { useState } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
+import { UploadProvider } from './contexts/UploadContext';
+import UploadToast from './components/ui/UploadToast';
 
 // Payment Gate Component
-const Paywall = ({ onUnlock }: { onUnlock: () => void }) => {
+const Paywall = ({ onUnlock, isRenewal }: { onUnlock: () => void, isRenewal?: boolean }) => {
   const [redirecting, setRedirecting] = useState(false);
 
   const handleCheckout = () => {
@@ -27,10 +29,11 @@ const Paywall = ({ onUnlock }: { onUnlock: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
       <div className="glass p-10 rounded-[2.5rem] max-w-md border-primary/20">
-        <h1 className="text-3xl font-black mb-4">Dovrši svoju pretplatu</h1>
+        <h1 className="text-3xl font-black mb-4">{isRenewal ? 'Obnovi pretplatu' : 'Dovrši svoju pretplatu'}</h1>
         <p className="text-muted-foreground mb-8">
-          Tvoj račun je registriran, ali trebaš aktivnu pretplatu kako bi pristupio zajednici i
-          tečajevima.
+          {isRenewal 
+            ? 'Tvojih 90 dana je isteklo. Obnovi pretplatu za nastavak pristupa zajednici i tečajevima.'
+            : 'Tvoj račun je registriran, ali trebaš aktivnu pretplatu kako bi pristupio zajednici i tečajevima.'}
         </p>
         <button
           onClick={handleCheckout}
@@ -73,12 +76,29 @@ function AppRoutes() {
     );
   }
 
-  const isActive = profile?.status === 'active' || isMockActive;
+  // Safely parse createdAt
+  const getSignupDate = (): Date => {
+    if (!profile?.createdAt) return new Date();
+    const parsed = new Date(profile.createdAt);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const getDaysElapsed = () => {
+    const signupDate = getSignupDate();
+    const diff = Date.now() - signupDate.getTime();
+    return diff / (1000 * 60 * 60 * 24);
+  };
+
+  const offsetDays = profile?.offsetDays || 0;
+  const subscriptionLimit = 90 + offsetDays;
+  const isTimeLocked = !profile?.isAdmin && getDaysElapsed() >= subscriptionLimit;
+  const isBaseActive = profile?.status === 'active' || isMockActive;
+  const isActive = isBaseActive && !isTimeLocked;
 
   if (!isActive) {
     return (
       <Routes>
-        <Route path="/pay" element={<Paywall onUnlock={() => setIsMockActive(true)} />} />
+        <Route path="/pay" element={<Paywall onUnlock={() => setIsMockActive(true)} isRenewal={isTimeLocked} />} />
         <Route path="*" element={<Navigate to="/pay" replace />} />
       </Routes>
     );
@@ -109,7 +129,12 @@ function AppRoutes() {
 }
 
 function App() {
-  return <AppRoutes />;
+  return (
+    <UploadProvider>
+      <AppRoutes />
+      <UploadToast />
+    </UploadProvider>
+  );
 }
 
 export default App;

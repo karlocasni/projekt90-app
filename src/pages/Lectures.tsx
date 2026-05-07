@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Play, Lock, Clock, CheckCircle2, ChevronRight, Bell } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { useState, useEffect, useRef } from 'react';
+import { Play, Lock, Clock, CheckCircle2, ChevronRight, Bell, Plus, X, Upload } from 'lucide-react';
+import { collection, getDocs, addDoc, onSnapshot, query, updateDoc, doc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { createNotification } from '../lib/notifications';
@@ -14,6 +15,7 @@ interface Lecture {
   thumbnail: string;
   duration: string;
   category: string;
+  youtubeId?: string;
 }
 
 const mockLectures: Lecture[] = [
@@ -50,6 +52,22 @@ export default function Lectures() {
   const { user, profile } = useAuth();
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [notifying, setNotifying] = useState(false);
+  const [lectures, setLectures] = useState<Lecture[]>(mockLectures);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newCourse, setNewCourse] = useState<Partial<Lecture>>({});
+  const [uploading, setUploading] = useState(false);
+  const [addingCourse, setAddingCourse] = useState(false);
+  const [editCourseId, setEditCourseId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'courses'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const dbLectures = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lecture));
+      setLectures([...mockLectures, ...dbLectures]);
+    });
+    return unsubscribe;
+  }, []);
 
   const notifyAll = async () => {
     if (!user || notifying) return;
@@ -80,7 +98,69 @@ export default function Lectures() {
     }
   };
 
-  // Safely parse createdAt — fall back to now if empty/invalid
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `thumbnails/${Date.now()}_${file.name}`);
+      const task = uploadBytesResumable(storageRef, file);
+      task.on('state_changed', null, 
+        (err) => { console.error(err); setUploading(false); },
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          setNewCourse(prev => ({ ...prev, thumbnail: url }));
+          setUploading(false);
+        }
+      );
+    } catch (err) {
+      console.error(err);
+      setUploading(false);
+    }
+  };
+
+  const extractYoutubeId = (urlOrId?: string) => {
+    if (!urlOrId) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = urlOrId.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : urlOrId;
+  };
+
+  const handleAddCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCourse.thumbnail && !editCourseId) {
+      alert('Molimo prenesite sliku!');
+      return;
+    }
+    setAddingCourse(true);
+    try {
+      const courseData = {
+        title: newCourse.title || '',
+        description: newCourse.description || '',
+        daysToUnlock: Number(newCourse.daysToUnlock) || 0,
+        thumbnail: newCourse.thumbnail || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80',
+        duration: newCourse.duration || '10:00',
+        category: newCourse.category || 'Trening',
+        youtubeId: extractYoutubeId(newCourse.youtubeId) || null,
+      };
+
+      if (editCourseId) {
+        await updateDoc(doc(db, 'courses', editCourseId), courseData);
+      } else {
+        await addDoc(collection(db, 'courses'), courseData);
+      }
+      
+      setShowAddModal(false);
+      setNewCourse({});
+      setEditCourseId(null);
+    } catch (err) {
+      console.error('Failed to save course:', err);
+      alert('Greška pri spremanju');
+    } finally {
+      setAddingCourse(false);
+    }
+  };
+
   const getSignupDate = (): Date => {
     if (!profile?.createdAt) return new Date();
     const parsed = new Date(profile.createdAt);
@@ -93,8 +173,8 @@ export default function Lectures() {
   };
 
   const isLocked = (days: number): boolean => {
+    if (profile?.isAdmin) return false;
     if (days === 0) return false;
-    // If profile hasn't loaded yet or createdAt is empty, don't lock
     if (!profile?.createdAt) return false;
     const unlockDate = getUnlockDate(days);
     return new Date() < unlockDate;
@@ -119,16 +199,29 @@ export default function Lectures() {
           <ChevronRight className="w-4 h-4 rotate-180" /> NATRAG
         </button>
         <div className="aspect-video bg-black rounded-3xl overflow-hidden mb-8 relative">
-          <img
-            src={selectedLecture.thumbnail}
-            className="w-full h-full object-cover opacity-50"
-            alt=""
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer">
-              <Play className="w-8 h-8 text-black fill-current" />
-            </div>
-          </div>
+          {selectedLecture.youtubeId ? (
+            <iframe 
+              src={`https://www.youtube.com/embed/${selectedLecture.youtubeId.includes('http') ? (selectedLecture.youtubeId.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]{11})/) || [])[1] || selectedLecture.youtubeId : selectedLecture.youtubeId}?rel=0&modestbranding=1&playsinline=1&origin=${window.location.origin}`}
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              title={selectedLecture.title}
+            />
+          ) : (
+            <>
+              <img
+                src={selectedLecture.thumbnail}
+                className="w-full h-full object-cover opacity-50"
+                alt=""
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer">
+                  <Play className="w-8 h-8 text-black fill-current" />
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3 mb-4">
           <span className="text-xs font-black uppercase bg-primary/20 text-primary px-3 py-1 rounded-full">
@@ -152,24 +245,43 @@ export default function Lectures() {
   }
 
   return (
-    <div className="p-4 md:p-10 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-10">
-        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
-          Baza <span className="text-primary">Znanja</span>
-        </h1>
+    <div className="p-4 md:p-10 max-w-5xl mx-auto pb-24">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+        <div>
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase text-white mb-2">
+            BAZA <span className="text-primary">ZNANJA</span>
+          </h1>
+          <p className="text-muted-foreground text-sm uppercase tracking-widest max-w-md leading-relaxed">
+            Ekskluzivni edukativni sadržaj i tečajevi za Project90 članove.
+          </p>
+        </div>
         {profile?.isAdmin && (
-          <button
-            onClick={notifyAll}
-            disabled={notifying}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-black bg-primary/20 text-primary rounded-full hover:bg-primary/30 transition-colors disabled:opacity-50"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            {notifying ? 'Slanje...' : 'Obavijesti članove'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setEditCourseId(null);
+                setNewCourse({});
+                setShowAddModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-full font-black text-xs hover:scale-105 transition-transform"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Dodaj Lekciju
+            </button>
+            <button
+              onClick={notifyAll}
+              disabled={notifying}
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white rounded-full font-black text-xs hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              {notifying ? 'Slanje...' : 'Obavijesti članove'}
+            </button>
+          </div>
         )}
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {mockLectures.map((l) => {
+        {lectures.map((l) => {
           const locked = isLocked(l.daysToUnlock);
           return (
             <div
@@ -182,17 +294,12 @@ export default function Lectures() {
                   : 'cursor-pointer hover:shadow-[0_0_30px_rgba(212,255,0,0.2)]',
               )}
             >
-              {/* Background Image */}
               <img 
                 src={l.thumbnail} 
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 alt="" 
               />
-              
-              {/* Dark Gradient Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent" />
-
-              {/* Locked State Overlay */}
               {locked ? (
                 <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center z-10">
                   <Lock className="w-10 h-10 mb-3 text-white/50" />
@@ -207,8 +314,19 @@ export default function Lectures() {
                   </div>
                 </div>
               )}
-
-              {/* Content */}
+              {profile?.isAdmin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditCourseId(l.id);
+                    setNewCourse(l);
+                    setShowAddModal(true);
+                  }}
+                  className="absolute top-4 right-4 z-30 bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full hover:bg-primary hover:text-black transition-colors uppercase"
+                >
+                  Uredi
+                </button>
+              )}
               <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-[10px] font-black uppercase bg-primary text-black px-2 py-0.5 rounded-sm">
@@ -224,20 +342,117 @@ export default function Lectures() {
                 </h3>
                 <p className="text-white/60 text-sm line-clamp-2">{l.description}</p>
               </div>
-
-              {/* Progress Bar (Mock Data) */}
-              {!locked && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 z-20">
-                  <div 
-                    className="h-full bg-primary shadow-[0_0_10px_rgba(212,255,0,0.8)]" 
-                    style={{ width: `${Math.random() * 60 + 10}%` }} 
-                  />
-                </div>
-              )}
             </div>
           );
         })}
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" onClick={() => {setShowAddModal(false); setEditCourseId(null);}} />
+          <div className="relative w-full max-w-md glass p-8 rounded-[2.5rem] border-primary/20 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => {setShowAddModal(false); setEditCourseId(null);}}
+              className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full text-muted-foreground transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-3xl font-black mb-6 uppercase tracking-tighter text-white">
+              {editCourseId ? 'Uredi' : 'Nova'} <span className="text-primary">Lekcija</span>
+            </h2>
+            <form onSubmit={handleAddCourse} className="space-y-4">
+              <input
+                type="text"
+                placeholder="Naslov"
+                value={newCourse.title || ''}
+                onChange={e => setNewCourse({...newCourse, title: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+                required
+              />
+              <textarea
+                placeholder="Opis"
+                value={newCourse.description || ''}
+                onChange={e => setNewCourse({...newCourse, description: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+                required
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  type="number"
+                  placeholder="Dani za otklj."
+                  value={newCourse.daysToUnlock || ''}
+                  onChange={e => setNewCourse({...newCourse, daysToUnlock: Number(e.target.value)})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Trajanje (npr 12:45)"
+                  value={newCourse.duration || ''}
+                  onChange={e => setNewCourse({...newCourse, duration: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+                  required
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Kategorija (Tag)"
+                value={newCourse.category || ''}
+                onChange={e => setNewCourse({...newCourse, category: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+                required
+              />
+              <input
+                type="text"
+                placeholder="YouTube ID (opcionalno)"
+                value={newCourse.youtubeId || ''}
+                onChange={e => setNewCourse({...newCourse, youtubeId: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+              />
+              <div 
+                className="border-2 border-dashed border-white/20 rounded-xl p-4 text-center cursor-pointer hover:bg-white/5 transition-colors" 
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && file.type.startsWith('image/')) {
+                    const syntheticEvent = { target: { files: [file] } } as any;
+                    handleImageUpload(syntheticEvent);
+                  }
+                }}
+              >
+                {uploading ? (
+                  <span className="text-sm font-bold text-primary">Prijenos u tijeku...</span>
+                ) : newCourse.thumbnail ? (
+                  <img src={newCourse.thumbnail} className="h-20 mx-auto rounded-lg object-cover" alt="Thumbnail" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-sm font-bold text-muted-foreground uppercase">Dodaj Thumbnail (Slika)</span>
+                    <span className="text-[10px] text-muted-foreground">Klikni ili povuci sliku ovdje</span>
+                  </div>
+                )}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleImageUpload} 
+                />
+              </div>
+              <button 
+                type="submit"
+                disabled={addingCourse || uploading}
+                className="w-full py-4 bg-primary text-black rounded-xl font-black text-lg hover:scale-[1.02] transition-transform disabled:opacity-50"
+              >
+                {addingCourse ? 'SPREMANJE...' : (editCourseId ? 'SPREMI PROMJENE' : 'DODAJ')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

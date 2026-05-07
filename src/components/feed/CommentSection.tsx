@@ -11,6 +11,7 @@ import {
   doc,
   updateDoc,
   increment,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -171,6 +172,18 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
     }
   };
 
+  const deleteComment = async (commentId: string) => {
+    if (!window.confirm('Obrisati komentar?')) return;
+    try {
+      await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
+      await updateDoc(doc(db, 'posts', postId), {
+        commentsCount: increment(-1),
+      });
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
+  };
+
   return (
     <div className="pt-6 space-y-6">
       {/* Comment input */}
@@ -231,7 +244,7 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
           </p>
         ) : (
           comments.map((c) => (
-            <div key={c.id} className="flex gap-3">
+            <div key={c.id} className="flex gap-3 relative group">
               <Link to={user?.uid === c.authorId ? '/profile' : `/profile/${c.authorId}`}>
                 <img
                   src={c.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.authorName}`}
@@ -244,12 +257,22 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
                 />
               </Link>
               <div className="flex-1 bg-white/5 rounded-2xl px-4 py-3">
-                <Link
-                  to={user?.uid === c.authorId ? '/profile' : `/profile/${c.authorId}`}
-                  className="font-bold text-sm block mb-1 hover:text-primary transition-colors"
-                >
-                  {c.authorName}
-                </Link>
+                <div className="flex justify-between items-start">
+                  <Link
+                    to={user?.uid === c.authorId ? '/profile' : `/profile/${c.authorId}`}
+                    className="font-bold text-sm block mb-1 hover:text-primary transition-colors"
+                  >
+                    {c.authorName}
+                  </Link>
+                  {(user?.uid === c.authorId || profile?.isAdmin) && (
+                    <button
+                      onClick={() => deleteComment(c.id)}
+                      className="text-xs text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      Obriši
+                    </button>
+                  )}
+                </div>
                 <p className="text-sm text-foreground/80">{renderWithMentions(c.content)}</p>
               </div>
             </div>

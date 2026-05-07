@@ -66,6 +66,19 @@ export default defineConfig({
                 maxAgeSeconds: 7 * 24 * 60 * 60, // 7 Days
               },
             },
+          },
+          {
+            // Cache Firebase Storage media (uploaded images + videos)
+            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'firebase-media-cache',
+              rangeRequests: true,
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+              },
+            },
           }
         ]
       }

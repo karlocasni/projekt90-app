@@ -20,6 +20,8 @@ const AuthContext = createContext<AuthContextType>({
   signInMock: () => {},
 });
 
+const ADMIN_EMAILS = ['ursa2706@gmail.com', 'karlo.casni2@gmail.com', 'brunovujcec6@gmail.com'];
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -53,20 +55,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
+        const isEmailAdmin = firebaseUser.email ? ADMIN_EMAILS.includes(firebaseUser.email) : false;
+        
         const profileRef = doc(db, 'profiles', firebaseUser.uid);
         const unsubProfile = onSnapshot(
           profileRef,
           (docSnap) => {
             if (docSnap.exists()) {
-              setProfile(docSnap.data() as UserProfile);
+              const data = docSnap.data() as UserProfile;
+              if (isEmailAdmin) data.isAdmin = true;
+              setProfile(data);
             } else {
-              setProfile({ username: 'Novi Član', email: '', status: 'inactive', xp: 0, level: 1, createdAt: '' });
+              setProfile({ 
+                username: 'Novi Član', 
+                email: firebaseUser.email || '', 
+                status: 'inactive', 
+                xp: 0, 
+                level: 1, 
+                createdAt: '',
+                isAdmin: isEmailAdmin
+              });
             }
             setLoading(false);
           },
           (error) => {
             console.warn('Profile snapshot error:', error.code);
-            setProfile({ username: 'Novi Član', email: '', status: 'inactive', xp: 0, level: 1, createdAt: '' });
+            setProfile({ username: 'Novi Član', email: firebaseUser.email || '', status: 'inactive', xp: 0, level: 1, createdAt: '' });
             setLoading(false);
           }
         );

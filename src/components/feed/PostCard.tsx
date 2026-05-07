@@ -14,6 +14,10 @@ import {
   arrayUnion,
   arrayRemove,
   getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
   setDoc,
   serverTimestamp,
   Timestamp,
@@ -143,6 +147,24 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const handleTogglePin = async () => {
+    setShowOptions(false);
+    if (post.pinned) {
+      // Unpin
+      await updateDoc(doc(db, 'posts', post.id), { pinned: false });
+      return;
+    }
+    // Check how many posts are pinned
+    const q = query(collection(db, 'posts'), where('pinned', '==', true));
+    const snap = await getDocs(q);
+    const live = snap.docs.filter(d => d.data().status !== 'deleted');
+    if (live.length >= 5) {
+      alert('Već je prikvačeno 5 objava. Otkvači jednu prije nego prikvačiš novu.');
+      return;
+    }
+    await updateDoc(doc(db, 'posts', post.id), { pinned: true });
+  };
+
   const likes: string[] = Array.isArray(post.likes) ? post.likes : [];
   const isLiked = likes.includes(user?.uid ?? '');
 
@@ -249,56 +271,89 @@ export default function PostCard({ post }: PostCardProps) {
             {showOptions && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowOptions(false)} />
-                <div className="absolute right-0 top-full mt-2 w-48 glass border border-white/10 rounded-2xl p-2 z-20 shadow-2xl animate-in fade-in slide-in-from-top-2">
-                  {user?.uid === post.authorId ? (
-                    <button
-                      onClick={handleDelete}
-                      className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors font-bold"
-                    >
-                      Obriši objavu
-                    </button>
-                  ) : (
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 rounded-xl transition-colors"
-                      onClick={() => setShowOptions(false)}
-                    >
-                      Prijavi objavu
-                    </button>
-                  )}
-                </div>
+                  <div className="absolute right-0 top-full mt-2 w-52 glass border border-white/10 rounded-2xl p-2 z-20 shadow-2xl animate-in fade-in slide-in-from-top-2">
+                    {profile?.isAdmin && (
+                      <button
+                        onClick={handleTogglePin}
+                        className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-primary/10 rounded-xl transition-colors font-bold flex items-center gap-2"
+                      >
+                        <Pin className="w-3.5 h-3.5" />
+                        {post.pinned ? 'Otkvači objavu' : 'Prikvači objavu'}
+                      </button>
+                    )}
+                    {user?.uid === post.authorId || profile?.isAdmin ? (
+                      <>
+                        <button
+                          onClick={handleDelete}
+                          className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors font-bold"
+                        >
+                          Obriši objavu {profile?.isAdmin && user?.uid !== post.authorId && '(Admin)'}
+                        </button>
+                        {user?.uid !== post.authorId && (
+                          <button
+                            className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 rounded-xl transition-colors mt-1"
+                            onClick={() => setShowOptions(false)}
+                          >
+                            Prijavi objavu
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 rounded-xl transition-colors"
+                        onClick={() => setShowOptions(false)}
+                      >
+                        Prijavi objavu
+                      </button>
+                    )}
+                  </div>
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Content: text left, thumbnail right if image exists */}
-      <div className="px-4 pb-3 flex gap-3">
-        <div className="flex-1 min-w-0">
-          {post.title ? (
-            <>
-              <h2 className="font-heading font-black text-base uppercase leading-tight mb-1">
-                {renderWithMentions(post.title)}
-              </h2>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {renderWithMentions(post.content)}
-              </p>
-            </>
-          ) : (
-            <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+      {/* Text content — always full width */}
+      <div className="px-4 pb-2">
+        {post.title ? (
+          <>
+            <h2 className="font-heading font-black text-base uppercase leading-tight mb-1">
+              {renderWithMentions(post.title)}
+            </h2>
+            <p className="text-sm text-muted-foreground">
               {renderWithMentions(post.content)}
             </p>
-          )}
-        </div>
-        {post.imageUrl && (
+          </>
+        ) : (
+          <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+            {renderWithMentions(post.content)}
+          </p>
+        )}
+      </div>
+
+      {/* Media — full width below text */}
+      {post.imageUrl && (
+        <div className="px-4 pb-3">
           <img
             src={post.imageUrl}
-            className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
+            className="w-full max-h-[480px] rounded-xl object-contain bg-black/30"
             loading="lazy"
             alt="Post slika"
           />
-        )}
-      </div>
+        </div>
+      )}
+      {post.videoUrl && (
+        <div className="px-4 pb-3">
+          <video
+            src={`${post.videoUrl}#t=0.001`}
+            className="w-full max-h-[480px] rounded-xl bg-black"
+            controls
+            playsInline
+            preload="metadata"
+            style={{ objectFit: 'contain' }}
+          />
+        </div>
+      )}
 
       {/* Footer */}
       <div className="px-4 py-3 flex items-center gap-4 border-t border-white/5">

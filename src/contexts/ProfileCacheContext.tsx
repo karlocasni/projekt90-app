@@ -7,12 +7,13 @@ interface ProfileCache {
   [uid: string]: {
     avatar_url?: string;
     username?: string;
+    isAdmin?: boolean;
     timestamp: number;
   };
 }
 
 interface ProfileCacheContextType {
-  getProfile: (uid: string) => { avatar_url?: string; username?: string } | null;
+  getProfile: (uid: string) => { avatar_url?: string; username?: string; isAdmin?: boolean } | null;
   refreshProfile: (uid: string) => Promise<void>;
 }
 
@@ -36,6 +37,7 @@ export const ProfileCacheProvider = ({ children }: { children: React.ReactNode }
           [uid]: {
             avatar_url: data.avatar_url,
             username: data.username,
+            isAdmin: data.isAdmin,
             timestamp: Date.now(),
           },
         }));
@@ -56,7 +58,7 @@ export const ProfileCacheProvider = ({ children }: { children: React.ReactNode }
       }
     }
 
-    return entry ? { avatar_url: entry.avatar_url, username: entry.username } : null;
+    return entry ? { avatar_url: entry.avatar_url, username: entry.username, isAdmin: entry.isAdmin } : null;
   }, [cache, refreshProfile]);
 
   return (

@@ -287,23 +287,108 @@ export default function Profile() {
           </form>
         ) : (
           /* View-only stats for other users */
-          <div className="grid grid-cols-2 gap-4">
-            <div className="ursa-card p-6 flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
-                Ukupni XP
-              </span>
-              <span className="text-2xl font-black text-primary">
-                {(viewedProfile?.xp ?? 0).toLocaleString()}
-              </span>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="ursa-card p-6 flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
+                  Ukupni XP
+                </span>
+                <span className="text-2xl font-black text-primary">
+                  {(viewedProfile?.xp ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="ursa-card p-6 flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
+                  Razina
+                </span>
+                <span className="text-2xl font-black text-white">
+                  {calculateLevel(viewedProfile?.xp ?? 0)}
+                </span>
+              </div>
             </div>
-            <div className="ursa-card p-6 flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
-                Razina
-              </span>
-              <span className="text-2xl font-black text-white">
-                {calculateLevel(viewedProfile?.xp ?? 0)}
-              </span>
-            </div>
+            {myProfile?.isAdmin && !isOwnProfile && paramId && (
+              <div className="space-y-4">
+                <div className="ursa-card p-6 border border-primary/20 bg-primary/5">
+                  <h3 className="text-sm font-black text-primary uppercase mb-4">Admin Kontrole: Pretplata</h3>
+                  
+                  <div className="space-y-2 mb-6">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground uppercase text-xs">Datum pridruživanja:</span>
+                      <span className="font-bold text-white">
+                        {viewedProfile?.createdAt ? new Date(viewedProfile.createdAt).toLocaleDateString('hr-HR') : 'Nepoznato'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground uppercase text-xs">Datum isteka (90d + offset):</span>
+                      <span className="font-bold text-primary">
+                        {viewedProfile?.createdAt 
+                          ? new Date(new Date(viewedProfile.createdAt).getTime() + (90 + (viewedProfile.offsetDays || 0)) * 24 * 60 * 60 * 1000).toLocaleDateString('hr-HR') 
+                          : 'Nepoznato'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground uppercase text-xs">Trenutni offset:</span>
+                      <span className="font-bold">{viewedProfile?.offsetDays || 0} dana</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 items-center">
+                    <input 
+                      type="number"
+                      placeholder="Novi offset"
+                      className="w-24 bg-black/50 border border-white/10 rounded-xl py-2 px-3 focus:border-primary text-white text-center"
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) {
+                          // We use a custom property on the input to store the value temporarily without React state if needed,
+                          // but since we can't easily do that without state, we will add an id and read it.
+                        }
+                      }}
+                      id={`offset-input-${paramId}`}
+                    />
+                    <button
+                      onClick={async () => {
+                        const inputEl = document.getElementById(`offset-input-${paramId}`) as HTMLInputElement;
+                        const val = parseInt(inputEl.value);
+                        if (isNaN(val)) return alert('Unesite ispravan broj');
+                        
+                        const { updateDoc } = await import('firebase/firestore');
+                        try {
+                          await updateDoc(doc(db, 'profiles', paramId), {
+                            offsetDays: val
+                          });
+                          alert(`Offset postavljen na ${val} dana.`);
+                          inputEl.value = '';
+                        } catch (err) {
+                          alert('Greška pri ažuriranju: ' + err);
+                        }
+                      }}
+                      className="flex-1 py-2 bg-primary text-black rounded-xl text-sm font-black hover:scale-[1.02] transition-transform"
+                    >
+                      POSTAVI OFFSET
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('Jesi li siguran da želiš obrisati ovog korisnika?')) return;
+                    try {
+                      const { deleteDoc } = await import('firebase/firestore');
+                      await deleteDoc(doc(db, 'profiles', paramId));
+                      alert('Korisnik obrisan.');
+                      navigate('/members');
+                    } catch (err) {
+                      console.error('Delete user failed:', err);
+                      alert('Greška pri brisanju korisnika.');
+                    }
+                  }}
+                  className="w-full py-4 ursa-card border-red-500/20 text-red-400 font-black text-lg flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors"
+                >
+                  OBRIŠI KORISNIKA
+                </button>
+              </div>
+            )}
           </div>
         )}
 
