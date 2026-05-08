@@ -13,7 +13,7 @@ const DAY_LABELS = ['P', 'U', 'S', 'Č', 'P', 'S', 'N'];
 const RADIUS = 44;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-function getLast7Days() {
+function getRecentWeekdays() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - 6 + i);
@@ -23,8 +23,9 @@ function getLast7Days() {
       label: DAY_LABELS[idx],
       key: d.toISOString().slice(0, 10),
       isToday: i === 6,
+      idx
     };
-  });
+  }).filter(day => day.idx < 5); // Only keep Mon-Fri (indices 0-4)
 }
 
 export default function Progress() {
@@ -68,7 +69,7 @@ export default function Progress() {
       .catch(() => {});
   }, [user]);
 
-  const weekDays = getLast7Days();
+  const weekDays = getRecentWeekdays();
 
   const stats = [
     {

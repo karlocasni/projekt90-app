@@ -22,6 +22,7 @@ export default function Profile() {
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [bio, setBio] = useState('');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
   const [editOpen, setEditOpen] = useState(false);
   
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -39,6 +40,7 @@ export default function Profile() {
           setUsername(myProfile.username || '');
           setPhoneNumber(myProfile.phone_number || '');
           setBio(myProfile.bio || '');
+          setGender(myProfile.gender || 'male');
         }
       } else if (paramId) {
         setFetchingProfile(true);
@@ -86,7 +88,7 @@ export default function Profile() {
       if (!user?.uid) throw new Error('Korisnik nije prijavljen.');
       await setDoc(
         doc(db, 'profiles', user.uid),
-        { username, phone_number: phoneNumber, bio: bio.trim(), updatedAt: new Date().toISOString() },
+        { username, phone_number: phoneNumber, bio: bio.trim(), gender, updatedAt: new Date().toISOString() },
         { merge: true },
       );
       showStatus('success', 'Profil uspješno ažuriran!');
@@ -296,6 +298,20 @@ export default function Profile() {
                     placeholder="Napiši nešto o sebi, svojim ciljevima..."
                   />
                   <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+                </div>
+
+                <div className="space-y-2 text-left">
+                  <label className="text-xs font-black text-muted-foreground uppercase ml-1">
+                    Spol
+                  </label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as 'male' | 'female')}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 focus:border-primary focus:outline-none transition-colors text-white appearance-none"
+                  >
+                    <option value="male" className="bg-black text-white">Muško</option>
+                    <option value="female" className="bg-black text-white">Žensko</option>
+                  </select>
                 </div>
 
                 {statusMsg && (

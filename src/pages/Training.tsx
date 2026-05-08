@@ -6,24 +6,8 @@ import { db } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { awardXP } from '../lib/xp';
 
-const workoutPlan = [
-  {
-    day: 'Ponedjeljak',
-    focus: 'Push (Prsa, Ramena, Triceps)',
-    exercises: [
-      { name: 'Bench Press', sets: '4', reps: '8-10' },
-      { name: 'Overhead Press', sets: '3', reps: '10-12' },
-      { name: 'Incline DB Flys', sets: '3', reps: '12-15' },
-      { name: 'Tricep Pushdowns', sets: '4', reps: '12-15' },
-    ],
-  },
-  { day: 'Utorak', focus: 'Pull (Leđa, Biceps)', exercises: [{ name: 'Deadlifts', sets: '3', reps: '5' }] },
-  { day: 'Srijeda', focus: 'Dan odmora', exercises: [] },
-  { day: 'Četvrtak', focus: 'Noge', exercises: [{ name: 'Squats', sets: '4', reps: '8' }] },
-  { day: 'Petak', focus: 'Gornji dio tijela', exercises: [] },
-  { day: 'Subota', focus: 'Cijelo tijelo', exercises: [] },
-  { day: 'Nedjelja', focus: 'Dan odmora', exercises: [] },
-];
+import { workoutPlanMale, workoutPlanFemale, trainingDescription } from '../data/trainingData';
+import { dietPlan } from '../data/dietData';
 
 type CalcState = {
   weight: number;
@@ -43,6 +27,15 @@ const defaultCalc: CalcState = {
   goal: 'bulk',
 };
 
+const getWeekStart = () => {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday.toISOString();
+};
+
 export default function Training() {
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'training' | 'diet'>('training');
@@ -53,11 +46,24 @@ export default function Training() {
   const [loaded, setLoaded] = useState(false);
   const [loggedToday, setLoggedToday] = useState<Set<string>>(new Set());
   const [loggingDay, setLoggingDay] = useState<string | null>(null);
+  const [showFullDescription, setShowFullDescription] = useState(false);
+
+  const isFemale = profile?.gender === 'female';
+  const workoutPlan = isFemale ? workoutPlanFemale : workoutPlanMale;
 
   useEffect(() => {
     if (profile?.macroCalc && !loaded) {
       setCalc(profile.macroCalc);
       setLoaded(true);
+    }
+    
+    if (profile?.loggedWorkouts) {
+      const currentWeek = getWeekStart();
+      if (profile.loggedWorkouts.weekStart === currentWeek) {
+        setLoggedToday(new Set(profile.loggedWorkouts.days));
+      } else {
+        setLoggedToday(new Set());
+      }
     }
   }, [profile, loaded]);
 
@@ -66,7 +72,16 @@ export default function Training() {
     setLoggingDay(dayName);
     try {
       await awardXP(user.uid, 25, profile.xp ?? 0);
-      setLoggedToday((prev) => new Set(prev).add(dayName));
+      const newLoggedSet = new Set(loggedToday).add(dayName);
+      setLoggedToday(newLoggedSet);
+      
+      const weekStart = getWeekStart();
+      await setDoc(doc(db, 'profiles', user.uid), {
+        loggedWorkouts: {
+          weekStart,
+          days: Array.from(newLoggedSet)
+        }
+      }, { merge: true });
     } catch (err) {
       console.error('Failed to log workout:', err);
     } finally {
@@ -81,9 +96,12 @@ export default function Training() {
     let targetCalories = tdee;
     if (calc.goal === 'cut') targetCalories -= 500;
     if (calc.goal === 'bulk') targetCalories += 500;
-    const p = Math.round(calc.weight * 2.2);
-    const f = Math.round((targetCalories * 0.25) / 9);
-    const c = Math.round((targetCalories - p * 4 - f * 9) / 4);
+    
+    const pMultiplier = calc.gender === 'male' ? 2.5 : 2.0;
+    const p = Math.round(calc.weight * pMultiplier);
+    const f = 65;
+    const c = Math.max(0, Math.round((targetCalories - p * 4 - f * 9) / 4));
+    
     return { p, c, f, calories: Math.round(targetCalories) };
   };
 
@@ -128,13 +146,15 @@ export default function Training() {
 
       {activeTab === 'training' ? (
         <div className="space-y-6">
-          <div className="ursa-card p-6 bg-gradient-to-br from-[#161616] to-[#0A0A0A] border-primary/20">
-            <h2 className="text-sm font-black text-primary uppercase tracking-widest mb-1">
-              Današnji Trening
-            </h2>
-            <h3 className="text-3xl font-black uppercase mb-4">Push (Prsa, Ramena, Triceps)</h3>
-            <button className="w-full py-4 bg-primary text-black rounded-xl font-black text-lg shadow-[0_0_20px_rgba(212,255,0,0.3)] hover:scale-[1.02] active:scale-95 transition-all">
-              ZAPOČNI TRENING
+          <div className="ursa-card p-6 bg-white/5 border border-white/10 text-sm leading-relaxed text-white/80 whitespace-pre-wrap">
+            <p>
+              {showFullDescription ? trainingDescription.full : trainingDescription.short}
+            </p>
+            <button
+              onClick={() => setShowFullDescription(!showFullDescription)}
+              className="text-primary font-bold mt-2 hover:underline"
+            >
+              {showFullDescription ? 'Prikaži manje' : 'Pročitaj više...'}
             </button>
           </div>
 
@@ -145,7 +165,9 @@ export default function Training() {
                   onClick={() => setExpandedDay(expandedDay === day.day ? null : day.day)}
                   className="w-full p-6 flex justify-between items-center"
                 >
-                  <span className="font-black text-xl uppercase tracking-tighter">{day.day}</span>
+                  <span className="font-black text-xl uppercase tracking-tighter">
+                    {day.day} - {day.focus}
+                  </span>
                   <ChevronDown
                     className={cn('transition-transform', expandedDay === day.day && 'rotate-180')}
                   />
@@ -154,15 +176,27 @@ export default function Training() {
                   <div className="px-6 pb-6">
                     {day.exercises.length > 0 ? (
                       <div className="space-y-4">
+                        {day.notes && (
+                          <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl mb-4">
+                            <p className="text-sm text-primary/90 leading-relaxed italic">
+                              {day.notes}
+                            </p>
+                          </div>
+                        )}
                         {day.exercises.map((ex, i) => (
                           <div
                             key={i}
-                            className="flex justify-between items-center py-2 border-b border-white/5"
+                            className="flex flex-col py-3 border-b border-white/5 gap-1"
                           >
-                            <span className="font-bold">{ex.name}</span>
-                            <span className="text-primary font-black">
-                              {ex.sets}x{ex.reps}
-                            </span>
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold">{ex.name}</span>
+                              <span className="text-primary font-black ml-4 whitespace-nowrap">
+                                {ex.sets}x{ex.reps}
+                              </span>
+                            </div>
+                            {ex.note && (
+                              <span className="text-xs text-muted-foreground opacity-80">{ex.note}</span>
+                            )}
                           </div>
                         ))}
                         <button
@@ -189,52 +223,143 @@ export default function Training() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="ursa-card p-8">
-            <h3 className="text-2xl font-black mb-6 uppercase flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-primary" /> Kalkulator
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-black text-muted-foreground uppercase mb-1 block">
-                  Težina (kg)
-                </label>
-                <input
-                  type="number"
-                  value={calc.weight}
-                  onChange={(e) => setCalc({ ...calc, weight: Number(e.target.value) })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-black text-muted-foreground uppercase mb-1 block">
-                  Cilj
-                </label>
-                <select
-                  value={calc.goal}
-                  onChange={(e) => setCalc({ ...calc, goal: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 appearance-none bg-no-repeat bg-right pr-10"
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="ursa-card p-8">
+              <h3 className="text-2xl font-black mb-6 uppercase flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-primary" /> Kalkulator
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-black text-muted-foreground uppercase mb-1 block">
+                    Težina (kg)
+                  </label>
+                  <input
+                    type="number"
+                    value={calc.weight}
+                    onChange={(e) => setCalc({ ...calc, weight: Number(e.target.value) })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-muted-foreground uppercase mb-1 block">
+                    Spol
+                  </label>
+                  <select
+                    value={calc.gender}
+                    onChange={(e) => setCalc({ ...calc, gender: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 appearance-none text-white"
+                  >
+                    <option value="male" className="bg-black text-white">Muško</option>
+                    <option value="female" className="bg-black text-white">Žensko</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-black text-muted-foreground uppercase mb-1 block">
+                    Cilj
+                  </label>
+                  <select
+                    value={calc.goal}
+                    onChange={(e) => setCalc({ ...calc, goal: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 appearance-none bg-no-repeat bg-right pr-10"
+                  >
+                    <option value="cut">Definicija (Gubitak masti)</option>
+                    <option value="bulk">Masa (Dobivanje mišića)</option>
+                  </select>
+                </div>
+                <button
+                  onClick={saveMacros}
+                  disabled={savingMacros || !user}
+                  className="w-full py-3 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl font-black text-sm transition-colors disabled:opacity-50"
                 >
-                  <option value="cut">Definicija (Gubitak masti)</option>
-                  <option value="bulk">Masa (Dobivanje mišića)</option>
-                </select>
+                  {macrosSaved ? '✓ SPREMLJENO' : savingMacros ? 'SPREMANJE...' : 'SPREMI MAKROSE'}
+                </button>
               </div>
-              <button
-                onClick={saveMacros}
-                disabled={savingMacros || !user}
-                className="w-full py-3 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl font-black text-sm transition-colors disabled:opacity-50"
-              >
-                {macrosSaved ? '✓ SPREMLJENO' : savingMacros ? 'SPREMANJE...' : 'SPREMI MAKROSE'}
-              </button>
+            </div>
+            <div className="ursa-card p-8 bg-primary text-black flex flex-col justify-center items-center shadow-[0_0_30px_rgba(212,255,0,0.3)] border-none">
+              <h3 className="font-black text-4xl mb-2">{macros.calories} KCAL</h3>
+              <div className="flex gap-4 font-black uppercase text-xs opacity-80">
+                <span>P: {macros.p}g</span>
+                <span>U: {macros.c}g</span>
+                <span>M: {macros.f}g</span>
+              </div>
             </div>
           </div>
-          <div className="ursa-card p-8 bg-primary text-black flex flex-col justify-center items-center shadow-[0_0_30px_rgba(212,255,0,0.3)] border-none">
-            <h3 className="font-black text-4xl mb-2">{macros.calories} KCAL</h3>
-            <div className="flex gap-4 font-black uppercase text-xs opacity-80">
-              <span>P: {macros.p}g</span>
-              <span>U: {macros.c}g</span>
-              <span>M: {macros.f}g</span>
-            </div>
+
+          <div className="space-y-4">
+            <h3 className="text-xl font-black uppercase tracking-tight mt-8 mb-4">Plan Prehrane (Prilagođeno tebi)</h3>
+            {dietPlan.map((dayPlan) => (
+              <div key={`diet-${dayPlan.day}`} className="ursa-card overflow-hidden">
+                <button
+                  onClick={() => setExpandedDay(expandedDay === dayPlan.day ? null : dayPlan.day)}
+                  className="w-full p-6 flex justify-between items-center"
+                >
+                  <span className="font-black text-xl uppercase tracking-tighter">{dayPlan.day}</span>
+                  <ChevronDown className={cn('transition-transform', expandedDay === dayPlan.day && 'rotate-180')} />
+                </button>
+                {expandedDay === dayPlan.day && (
+                  <div className="px-6 pb-6 space-y-4">
+                    {['dorucak', 'rucak', 'uzina', 'vecera'].map((mealKey) => {
+                      const meal = dayPlan.meals[mealKey as keyof typeof dayPlan.meals];
+                      const mealTitles: Record<string, string> = { dorucak: 'Doručak', rucak: 'Ručak', uzina: 'Užina', vecera: 'Večera' };
+                      
+                      let mealKcal = 0;
+                      let mealP = 0;
+                      let mealC = 0;
+                      let mealF = 0;
+
+                      const ingredientsWithMacros = meal.ingredients.map(ing => {
+                        const amount = (ing.unit === 'g' || ing.unit === 'ml') 
+                          ? Math.round(ing.baseAmount * (macros.calories / 2000)) 
+                          : ing.baseAmount;
+                        
+                        const factor = (ing.unit === 'kom') ? amount : amount / 100;
+                        const k = Math.round(ing.macrosPer100.kcal * factor);
+                        const p = Math.round(ing.macrosPer100.p * factor);
+                        const c = Math.round(ing.macrosPer100.c * factor);
+                        const f = Math.round(ing.macrosPer100.f * factor);
+                        
+                        mealKcal += k;
+                        mealP += p;
+                        mealC += c;
+                        mealF += f;
+
+                        return { ...ing, amount, k, p, c, f };
+                      });
+
+                      return (
+                        <div key={mealKey} className="border border-white/10 rounded-xl p-4 bg-white/5">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h4 className="text-xs font-black text-primary uppercase tracking-widest mb-1">{mealTitles[mealKey]}</h4>
+                              <p className="font-bold text-lg leading-tight mt-1">{meal.name}</p>
+                            </div>
+                            <div className="text-right shrink-0 ml-4">
+                              <span className="block font-black text-primary text-sm">{mealKcal} kcal</span>
+                              <span className="text-[9px] uppercase text-muted-foreground font-bold tracking-wider">
+                                P: {mealP}g | U: {mealC}g | M: {mealF}g
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {ingredientsWithMacros.map((ing, i) => (
+                              <div key={i} className="flex justify-between items-center text-sm border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                                <div>
+                                  <span className="text-white/80 block">{ing.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">{ing.k} kcal (P:{ing.p} U:{ing.c} M:{ing.f})</span>
+                                </div>
+                                <span className="font-bold text-right shrink-0 ml-4">{ing.amount} {ing.unit}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

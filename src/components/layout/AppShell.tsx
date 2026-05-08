@@ -62,12 +62,6 @@ export default function AppShell({ children }: AppShellProps) {
 
           <aside className="hidden lg:flex flex-col gap-4 w-80 flex-shrink-0 sticky top-20">
             <Leaderboard />
-            <div className="ursa-card p-5">
-              <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground mb-3">
-                Nadolazeći Izazovi
-              </h3>
-              <p className="text-sm text-muted-foreground">Uskoro...</p>
-            </div>
           </aside>
         </div>
       </div>

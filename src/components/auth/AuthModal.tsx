@@ -14,6 +14,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -36,6 +37,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           status: 'inactive',
           xp: 0,
           level: 1,
+          gender,
           createdAt: new Date().toISOString()
         });
       }
@@ -86,6 +88,35 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-primary focus:outline-none transition-colors text-white"
                 required
               />
+            </div>
+          )}
+
+          {!isLogin && (
+            <div className="relative flex gap-4">
+              <label className="flex-1 flex items-center justify-center gap-2 p-4 rounded-2xl border cursor-pointer transition-colors bg-white/5 text-white hover:border-primary/50
+                has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                <input
+                  type="radio"
+                  name="gender"
+                  value="male"
+                  checked={gender === 'male'}
+                  onChange={() => setGender('male')}
+                  className="hidden"
+                />
+                <span className="font-bold text-sm uppercase">Muško</span>
+              </label>
+              <label className="flex-1 flex items-center justify-center gap-2 p-4 rounded-2xl border cursor-pointer transition-colors bg-white/5 text-white hover:border-primary/50
+                has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                <input
+                  type="radio"
+                  name="gender"
+                  value="female"
+                  checked={gender === 'female'}
+                  onChange={() => setGender('female')}
+                  className="hidden"
+                />
+                <span className="font-bold text-sm uppercase">Žensko</span>
+              </label>
             </div>
           )}
           

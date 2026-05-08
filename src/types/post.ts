@@ -31,6 +31,11 @@ export interface UserProfile {
   isAdmin?: boolean;
   offsetDays?: number;
   bio?: string;
+  gender?: 'male' | 'female';
+  loggedWorkouts?: {
+    weekStart: string;
+    days: string[];
+  };
   macroCalc?: {
     weight: number;
     height: number;
