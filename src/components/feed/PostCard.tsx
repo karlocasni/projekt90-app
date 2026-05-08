@@ -351,6 +351,7 @@ export default function PostCard({ post }: PostCardProps) {
             playsInline
             preload="metadata"
             style={{ objectFit: 'contain' }}
+            onPlay={(e) => { (e.currentTarget as HTMLVideoElement).muted = false; }}
           />
         </div>
       )}

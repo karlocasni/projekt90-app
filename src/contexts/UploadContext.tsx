@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, ReactNode } f
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
-import { compressImage, compressVideo } from '../lib/compress';
+import { compressImage } from '../lib/compress';
 import { awardXP } from '../lib/xp';
 import { createMentionNotifications } from '../lib/notifications';
 
@@ -84,10 +84,9 @@ export function UploadProvider({ children }: { children: ReactNode }) {
           update(id, { phase: 'compressing', progress: 0 });
           uploadBlob = await compressImage(mediaFile);
         } else if (mediaType === 'video') {
-          update(id, { phase: 'compressing', progress: 0 });
-          uploadBlob = await compressVideo(mediaFile, (p) => {
-            update(id, { progress: Math.floor(p / 2) });
-          });
+          // Skip FFmpeg compression — requires SharedArrayBuffer/COOP headers not set.
+          // validateVideo already enforces 60s / 150MB limits before we reach here.
+          uploadBlob = mediaFile;
         }
 
         update(id, { phase: 'uploading', progress: mediaType === 'video' ? 50 : 0 });

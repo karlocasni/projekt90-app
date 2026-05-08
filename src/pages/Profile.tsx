@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Phone, Mail, Camera, ShieldCheck, LogOut, ArrowLeft } from 'lucide-react';
+import { User, Phone, Mail, Camera, ShieldCheck, LogOut, ArrowLeft, ChevronDown } from 'lucide-react';
 import { db, storage } from '../lib/firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -21,6 +21,8 @@ export default function Profile() {
   // Form states for current user
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [bio, setBio] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
   
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -36,6 +38,7 @@ export default function Profile() {
         if (myProfile) {
           setUsername(myProfile.username || '');
           setPhoneNumber(myProfile.phone_number || '');
+          setBio(myProfile.bio || '');
         }
       } else if (paramId) {
         setFetchingProfile(true);
@@ -83,7 +86,7 @@ export default function Profile() {
       if (!user?.uid) throw new Error('Korisnik nije prijavljen.');
       await setDoc(
         doc(db, 'profiles', user.uid),
-        { username, phone_number: phoneNumber, updatedAt: new Date().toISOString() },
+        { username, phone_number: phoneNumber, bio: bio.trim(), updatedAt: new Date().toISOString() },
         { merge: true },
       );
       showStatus('success', 'Profil uspješno ažuriran!');
@@ -217,7 +220,8 @@ export default function Profile() {
 
         {isOwnProfile ? (
           /* Form Section for Own Profile */
-          <form onSubmit={handleUpdate} className="ursa-card p-8 space-y-6">
+          <div className="ursa-card p-8 space-y-6">
+            {/* Email — always visible */}
             <div className="space-y-2 text-left">
               <label className="text-xs font-black text-muted-foreground uppercase ml-1">
                 Email adresa
@@ -233,61 +237,99 @@ export default function Profile() {
               </div>
             </div>
 
-            <div className="space-y-2 text-left">
-              <label className="text-xs font-black text-muted-foreground uppercase ml-1">
-                Korisničko ime
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-primary focus:outline-none transition-colors text-white"
-                  placeholder="korisnicko_ime"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 text-left">
-              <label className="text-xs font-black text-muted-foreground uppercase ml-1">
-                Broj mobitela
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-primary focus:outline-none transition-colors text-white"
-                  placeholder="+385 91 000 0000"
-                />
-              </div>
-            </div>
-
-            {statusMsg && (
-              <p
-                className={
-                  statusMsg.type === 'success'
-                    ? 'text-sm text-primary font-bold text-center'
-                    : 'text-sm text-red-400 font-bold text-center'
-                }
-              >
-                {statusMsg.text}
-              </p>
-            )}
-
+            {/* Collapsible edit section */}
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 bg-primary text-black rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform disabled:opacity-50"
+              type="button"
+              onClick={() => setEditOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm font-black uppercase tracking-widest text-white hover:border-primary/50 transition-colors"
             >
-              {loading ? 'SPREMANJE...' : 'AŽURIRAJ PROFIL'}
+              <span>Uredi profil</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${editOpen ? 'rotate-180' : ''}`}
+              />
             </button>
-          </form>
+
+            {editOpen && (
+              <form onSubmit={handleUpdate} className="space-y-6">
+                <div className="space-y-2 text-left">
+                  <label className="text-xs font-black text-muted-foreground uppercase ml-1">
+                    Korisničko ime
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-primary focus:outline-none transition-colors text-white"
+                      placeholder="korisnicko_ime"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-left">
+                  <label className="text-xs font-black text-muted-foreground uppercase ml-1">
+                    Broj mobitela
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-primary focus:outline-none transition-colors text-white"
+                      placeholder="+385 91 000 0000"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-left">
+                  <label className="text-xs font-black text-muted-foreground uppercase ml-1">
+                    Opis o meni
+                  </label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    maxLength={300}
+                    rows={4}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 focus:border-primary focus:outline-none transition-colors text-white resize-none placeholder:text-muted-foreground/50"
+                    placeholder="Napiši nešto o sebi, svojim ciljevima..."
+                  />
+                  <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+                </div>
+
+                {statusMsg && (
+                  <p
+                    className={
+                      statusMsg.type === 'success'
+                        ? 'text-sm text-primary font-bold text-center'
+                        : 'text-sm text-red-400 font-bold text-center'
+                    }
+                  >
+                    {statusMsg.text}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 bg-primary text-black rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform disabled:opacity-50"
+                >
+                  {loading ? 'SPREMANJE...' : 'AŽURIRAJ PROFIL'}
+                </button>
+              </form>
+            )}
+          </div>
         ) : (
           /* View-only stats for other users */
           <div className="space-y-6">
+            {/* Bio — shown if set */}
+            {viewedProfile?.bio && (
+              <div className="ursa-card p-6">
+                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">Opis o meni</p>
+                <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{viewedProfile.bio}</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="ursa-card p-6 flex flex-col items-center justify-center text-center">
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">

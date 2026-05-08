@@ -30,6 +30,7 @@ export interface UserProfile {
   level: number;
   isAdmin?: boolean;
   offsetDays?: number;
+  bio?: string;
   macroCalc?: {
     weight: number;
     height: number;

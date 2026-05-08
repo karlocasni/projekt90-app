@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import {
   collection,
+  deleteDoc,
   doc,
   limit,
   onSnapshot,
@@ -87,13 +88,13 @@ export default function NotificationBell() {
 
   const markAllRead = async () => {
     if (!user) return;
-    const unread = notifications.filter((n) => !n.read);
-    if (unread.length === 0) return;
+    if (notifications.length === 0) return;
     const batch = writeBatch(db);
-    unread.forEach((n) => {
-      batch.update(doc(db, 'notifications', n.id), { read: true });
+    notifications.forEach((n) => {
+      batch.delete(doc(db, 'notifications', n.id));
     });
-    await batch.commit().catch((err) => console.warn('markAllRead failed:', err));
+    await batch.commit().catch((err) => console.warn('deleteAll notifications failed:', err));
+    setNotifications([]);
   };
 
   const handleNotificationClick = async (n: FirestoreNotification) => {
@@ -122,12 +123,12 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 glass border border-white/10 rounded-2xl shadow-2xl z-[60] overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl z-[60] overflow-hidden" style={{ background: '#111111', backdropFilter: 'none', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
             <span className="font-black text-xs uppercase tracking-widest text-muted-foreground">
               Obavijesti
             </span>
-            {hasUnread && (
+            {notifications.length > 0 && (
               <button
                 onClick={markAllRead}
                 className="text-xs text-primary font-bold hover:underline"
@@ -139,8 +140,8 @@ export default function NotificationBell() {
 
           <div className="max-h-[400px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nema obavijesti
+              <p style={{ color: 'rgba(255,255,255,0.4)', padding: '16px', textAlign: 'center' }}>
+                Nema novih obavijesti
               </p>
             ) : (
               notifications.map((n) => {
@@ -166,6 +167,11 @@ export default function NotificationBell() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-foreground/90 leading-snug">{n.message}</p>
+                      {n.senderName && (
+                        <span className="text-xs text-muted-foreground mt-0.5 block">
+                          Od: {n.senderName}
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground mt-0.5 block">
                         {formatRelative(n.createdAt)}
                       </span>
