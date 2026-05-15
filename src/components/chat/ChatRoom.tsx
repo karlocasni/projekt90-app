@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
 import {
   collection,
@@ -87,25 +87,27 @@ export default function ChatRoom({ chatId }: ChatRoomProps) {
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherName}`;
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100dvh - 5rem)' }}>
+    <div className="flex flex-col bg-background/50 rounded-3xl overflow-hidden border border-white/5" style={{ height: 'calc(100dvh - 11rem)' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 flex-shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-background/80 backdrop-blur-xl flex-shrink-0">
         <button
           onClick={() => navigate('/messages')}
           className="text-muted-foreground hover:text-white transition-colors p-1"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <img
-          src={otherAvatar}
-          className="w-9 h-9 rounded-full border border-white/10"
-          alt={otherName}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src =
-              `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherName}`;
-          }}
-        />
-        <span className="font-bold text-white text-sm">{otherName}</span>
+        <Link to={`/profile/${otherId}`} className="flex items-center gap-3">
+          <img
+            src={otherAvatar}
+            className="w-9 h-9 rounded-full border border-white/10 object-cover"
+            alt={otherName}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src =
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherName}`;
+            }}
+          />
+          <span className="font-bold text-white text-sm hover:text-primary transition-colors">{otherName}</span>
+        </Link>
       </div>
 
       {/* Messages */}
@@ -133,7 +135,7 @@ export default function ChatRoom({ chatId }: ChatRoomProps) {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-white/5 flex gap-2 flex-shrink-0">
+      <div className="p-3 border-t border-white/5 bg-background/80 backdrop-blur-xl flex gap-2 flex-shrink-0">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Lock, Clock, CheckCircle2, ChevronRight, Bell, Plus, X, Upload } from 'lucide-react';
-import { collection, getDocs, addDoc, onSnapshot, query, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, onSnapshot, query, updateDoc, doc, deleteDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,41 +18,12 @@ interface Lecture {
   youtubeId?: string;
 }
 
-const mockLectures: Lecture[] = [
-  {
-    id: '1',
-    title: 'Projekt90 Mindset',
-    description: 'Postavljanje temelja za dugoročni sportski uspjeh i mentalnu disciplinu.',
-    daysToUnlock: 0,
-    thumbnail: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80',
-    duration: '12:45',
-    category: 'Mindset',
-  },
-  {
-    id: '2',
-    title: 'Savladavanje osnovnih pokreta',
-    description: 'Detaljan uvid u formu Čučnja, Potiska s klupe i Mrtvog dizanja s pro savjetima.',
-    daysToUnlock: 1,
-    thumbnail: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80',
-    duration: '24:20',
-    category: 'Trening',
-  },
-  {
-    id: '3',
-    title: 'Prehrana 101: Makrosi i Mikrosi',
-    description: 'Sve što trebate znati o gorivu za vaše tijelo i rast.',
-    daysToUnlock: 3,
-    thumbnail: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&q=80',
-    duration: '18:15',
-    category: 'Prehrana',
-  },
-];
 
 export default function Lectures() {
   const { user, profile } = useAuth();
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [notifying, setNotifying] = useState(false);
-  const [lectures, setLectures] = useState<Lecture[]>(mockLectures);
+  const [lectures, setLectures] = useState<Lecture[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newCourse, setNewCourse] = useState<Partial<Lecture>>({});
   const [uploading, setUploading] = useState(false);
@@ -61,10 +32,10 @@ export default function Lectures() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'courses'));
+    const q = query(collection(db, 'courses'), orderBy('daysToUnlock', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const dbLectures = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lecture));
-      setLectures([...mockLectures, ...dbLectures]);
+      setLectures(dbLectures);
     });
     return unsubscribe;
   }, []);
@@ -126,6 +97,18 @@ export default function Lectures() {
     return (match && match[2].length === 11) ? match[2] : urlOrId;
   };
 
+  const handleDeleteCourse = async (courseId: string) => {
+    if (!profile?.isAdmin) return;
+    if (!window.confirm('Jesi li siguran da želiš obrisati ovu lekciju?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'courses', courseId));
+    } catch (err) {
+      console.error('Failed to delete course:', err);
+      alert('Greška pri brisanju');
+    }
+  };
+
   const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourse.thumbnail && !editCourseId) {
@@ -142,6 +125,7 @@ export default function Lectures() {
         duration: newCourse.duration || '10:00',
         category: newCourse.category || 'Trening',
         youtubeId: extractYoutubeId(newCourse.youtubeId) || null,
+        createdAt: editCourseId ? undefined : serverTimestamp(),
       };
 
       if (editCourseId) {
@@ -174,7 +158,7 @@ export default function Lectures() {
 
   const isLocked = (days: number): boolean => {
     if (profile?.isAdmin) return false;
-    if (days === 0) return false;
+    if (days <= 0) return false;
     if (!profile?.createdAt) return false;
     const unlockDate = getUnlockDate(days);
     return new Date() < unlockDate;
@@ -239,7 +223,7 @@ export default function Lectures() {
         <h1 className="text-4xl font-black mb-4 uppercase tracking-tighter">
           {selectedLecture.title}
         </h1>
-        <p className="text-muted-foreground text-lg mb-8">{selectedLecture.description}</p>
+        <p className="text-muted-foreground text-lg mb-8 whitespace-pre-wrap">{selectedLecture.description}</p>
       </div>
     );
   }
@@ -288,46 +272,59 @@ export default function Lectures() {
               key={l.id}
               onClick={() => !locked && setSelectedLecture(l)}
               className={cn(
-                'ursa-card relative overflow-hidden group transition-all h-[300px]',
+                'ursa-card flex flex-col overflow-hidden group transition-all',
                 locked
                   ? 'opacity-60 grayscale cursor-not-allowed'
                   : 'cursor-pointer hover:shadow-[0_0_30px_rgba(212,255,0,0.2)]',
               )}
             >
-              <img 
-                src={l.thumbnail} 
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                alt="" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent" />
-              {locked ? (
-                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center z-10">
-                  <Lock className="w-10 h-10 mb-3 text-white/50" />
-                  <span className="text-xs font-black uppercase bg-black/50 text-white/80 px-4 py-1.5 rounded-full backdrop-blur-md">
-                    {getTimeRemaining(l.daysToUnlock)}
-                  </span>
-                </div>
-              ) : (
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 z-10">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,255,0,0.5)] transform scale-50 group-hover:scale-100 transition-transform duration-300">
-                    <Play className="w-8 h-8 text-black fill-current ml-1" />
+              <div className="relative aspect-video overflow-hidden">
+                <img 
+                  src={l.thumbnail} 
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                  alt="" 
+                />
+                {locked ? (
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center z-10">
+                    <Lock className="w-10 h-10 mb-3 text-white/50" />
+                    <span className="text-xs font-black uppercase bg-black/50 text-white/80 px-4 py-1.5 rounded-full backdrop-blur-md">
+                      {getTimeRemaining(l.daysToUnlock)}
+                    </span>
                   </div>
-                </div>
-              )}
-              {profile?.isAdmin && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditCourseId(l.id);
-                    setNewCourse(l);
-                    setShowAddModal(true);
-                  }}
-                  className="absolute top-4 right-4 z-30 bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full hover:bg-primary hover:text-black transition-colors uppercase"
-                >
-                  Uredi
-                </button>
-              )}
-              <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
+                ) : (
+                  <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 z-10">
+                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,255,0,0.5)] transform scale-50 group-hover:scale-100 transition-transform duration-300">
+                      <Play className="w-8 h-8 text-black fill-current ml-1" />
+                    </div>
+                  </div>
+                )}
+                {profile?.isAdmin && (
+                  <div className="absolute top-4 right-4 z-30 flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditCourseId(l.id);
+                        setNewCourse(l);
+                        setShowAddModal(true);
+                      }}
+                      className="bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full hover:bg-primary hover:text-black transition-colors uppercase"
+                    >
+                      Uredi
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCourse(l.id);
+                      }}
+                      className="bg-red-500/60 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full hover:bg-red-500 transition-colors uppercase"
+                    >
+                      Obriši
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6 flex flex-col flex-1 bg-white/5">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-[10px] font-black uppercase bg-primary text-black px-2 py-0.5 rounded-sm">
                     {l.category}
@@ -337,10 +334,10 @@ export default function Lectures() {
                     {l.duration}
                   </span>
                 </div>
-                <h3 className="font-black text-2xl mb-1 text-white group-hover:text-primary transition-colors leading-tight">
+                <h3 className="font-black text-xl mb-2 text-white group-hover:text-primary transition-colors leading-tight">
                   {l.title}
                 </h3>
-                <p className="text-white/60 text-sm line-clamp-2">{l.description}</p>
+                <p className="text-white/60 text-sm line-clamp-2 whitespace-pre-wrap">{l.description}</p>
               </div>
             </div>
           );
@@ -373,7 +370,7 @@ export default function Lectures() {
                 placeholder="Opis"
                 value={newCourse.description || ''}
                 onChange={e => setNewCourse({...newCourse, description: e.target.value})}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:border-primary text-white min-h-[120px]"
                 required
               />
               <div className="grid grid-cols-2 gap-4">

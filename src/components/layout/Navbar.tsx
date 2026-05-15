@@ -37,10 +37,12 @@ export default function Navbar() {
           <MessageCircle className="w-5 h-5" />
         </Link>
         <NotificationBell />
-        {profile && <XPBadge xp={profile.xp ?? 0} compact />}
-        <div className="w-8 h-8 rounded-full bg-accent border border-white/10 overflow-hidden flex-shrink-0">
-          <img src={avatarSrc} alt="Avatar" />
-        </div>
+        <Link to="/progress" className="hover:scale-105 transition-transform">
+          {profile && <XPBadge xp={profile.xp ?? 0} compact />}
+        </Link>
+        <Link to="/profile" className="w-8 h-8 rounded-full bg-accent border border-white/10 overflow-hidden flex-shrink-0 hover:border-primary/50 transition-colors">
+          <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
+        </Link>
       </div>
     </nav>
   );

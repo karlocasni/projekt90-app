@@ -8,7 +8,6 @@ import { useMemberSearch } from '../../hooks/useMemberSearch';
 import MentionDropdown from '../ui/MentionDropdown';
 import { validateVideo } from '../../lib/compress';
 
-const CATEGORIES = ['Opća rasprava', 'Lekcije', 'Napredak', 'Pobjede'] as const;
 
 function getActiveMention(text: string, cursorPos: number): string | null {
   const before = text.slice(0, cursorPos);
@@ -31,7 +30,7 @@ export default function PostModal({ isOpen, onClose }: PostModalProps) {
   const { user, profile } = useAuth();
   const { enqueue } = useUpload();
 
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+  const [category, setCategory] = useState<string>('Opća rasprava');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -101,7 +100,7 @@ export default function PostModal({ isOpen, onClose }: PostModalProps) {
     setMediaFile(null);
     setMediaType(null);
     setActiveMention(null);
-    setCategory(CATEGORIES[0]);
+    setCategory('Opća rasprava');
     onClose();
   };
 
@@ -123,21 +122,6 @@ export default function PostModal({ isOpen, onClose }: PostModalProps) {
           </button>
         </div>
 
-        {/* Category pills */}
-        <div className="flex gap-2 flex-wrap mb-4">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-bold transition-all',
-                category === cat ? 'bg-primary text-black' : 'border border-white/20 text-muted-foreground hover:border-white/40 hover:text-white',
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
 
         {/* Optional title */}
         <input

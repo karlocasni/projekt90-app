@@ -35,20 +35,18 @@ export const dietPlan: DietDay[] = [
         ]
       },
       rucak: {
-        name: 'Piletina s rižom i salatom',
+        name: 'Piletina, krumpir i brokula',
         ingredients: [
           { name: 'Pileća prsa', baseAmount: 150, unit: 'g', macrosPer100: { p: 23, c: 0, f: 1.2, kcal: 110 } },
-          { name: 'Bijela riža', baseAmount: 80, unit: 'g', macrosPer100: { p: 7, c: 78, f: 1, kcal: 350 } },
-          { name: 'Maslinovo ulje', baseAmount: 10, unit: 'g', macrosPer100: { p: 0, c: 0, f: 100, kcal: 884 } },
-          { name: 'Miješana salata', baseAmount: 100, unit: 'g', macrosPer100: { p: 1, c: 3, f: 0, kcal: 15 } },
+          { name: 'Krumpir', baseAmount: 200, unit: 'g', macrosPer100: { p: 2, c: 17, f: 0.1, kcal: 77 } },
+          { name: 'Brokula', baseAmount: 100, unit: 'g', macrosPer100: { p: 2.8, c: 7, f: 0.4, kcal: 34 } },
         ]
       },
       uzina: {
-        name: 'Grčki jogurt s bademima',
+        name: 'Posni sir i bademi',
         ingredients: [
-          { name: 'Grčki jogurt', baseAmount: 200, unit: 'g', macrosPer100: { p: 10, c: 4, f: 0, kcal: 59 } },
+          { name: 'Posni sir', baseAmount: 200, unit: 'g', macrosPer100: { p: 12, c: 3, f: 0.5, kcal: 70 } },
           { name: 'Bademi', baseAmount: 20, unit: 'g', macrosPer100: { p: 21, c: 22, f: 49, kcal: 579 } },
-          { name: 'Med', baseAmount: 10, unit: 'g', macrosPer100: { p: 0, c: 82, f: 0, kcal: 304 } },
         ]
       },
       vecera: {
@@ -117,18 +115,17 @@ export const dietPlan: DietDay[] = [
         ]
       },
       rucak: {
-        name: 'Biftek s krumpirom',
+        name: 'Piletina s krumpirom',
         ingredients: [
-          { name: 'Goveđi biftek', baseAmount: 150, unit: 'g', macrosPer100: { p: 24, c: 0, f: 8, kcal: 170 } },
+          { name: 'Pileća prsa', baseAmount: 150, unit: 'g', macrosPer100: { p: 23, c: 0, f: 1.2, kcal: 110 } },
           { name: 'Krumpir', baseAmount: 200, unit: 'g', macrosPer100: { p: 2, c: 17, f: 0.1, kcal: 77 } },
-          { name: 'Maslac', baseAmount: 10, unit: 'g', macrosPer100: { p: 0.9, c: 0.1, f: 81, kcal: 717 } },
           { name: 'Zelena salata', baseAmount: 100, unit: 'g', macrosPer100: { p: 1.4, c: 2.9, f: 0.2, kcal: 15 } },
         ]
       },
       uzina: {
-        name: 'Jabuka i maslac od kikirikija',
+        name: 'Posni sir i maslac od kikirikija',
         ingredients: [
-          { name: 'Jabuka', baseAmount: 150, unit: 'g', macrosPer100: { p: 0.3, c: 14, f: 0.2, kcal: 52 } },
+          { name: 'Posni sir', baseAmount: 200, unit: 'g', macrosPer100: { p: 12, c: 3, f: 0.5, kcal: 70 } },
           { name: 'Kikiriki maslac', baseAmount: 25, unit: 'g', macrosPer100: { p: 25, c: 20, f: 50, kcal: 588 } },
         ]
       },
@@ -136,8 +133,6 @@ export const dietPlan: DietDay[] = [
         name: 'Tuna salata',
         ingredients: [
           { name: 'Tuna u salamuri', baseAmount: 120, unit: 'g', macrosPer100: { p: 25, c: 0, f: 1, kcal: 110 } },
-          { name: 'Kukuruz', baseAmount: 50, unit: 'g', macrosPer100: { p: 3, c: 19, f: 1.2, kcal: 86 } },
-          { name: 'Grah', baseAmount: 50, unit: 'g', macrosPer100: { p: 8, c: 20, f: 0.5, kcal: 115 } },
           { name: 'Salata i rajčica', baseAmount: 150, unit: 'g', macrosPer100: { p: 1, c: 3, f: 0, kcal: 16 } },
           { name: 'Maslinovo ulje', baseAmount: 10, unit: 'g', macrosPer100: { p: 0, c: 0, f: 100, kcal: 884 } },
         ]
@@ -152,7 +147,6 @@ export const dietPlan: DietDay[] = [
         ingredients: [
           { name: 'Jaja', baseAmount: 3, unit: 'kom', macrosPer100: { p: 6, c: 0.6, f: 5, kcal: 72 } },
           { name: 'Gljive i paprika', baseAmount: 100, unit: 'g', macrosPer100: { p: 2, c: 4, f: 0.3, kcal: 22 } },
-          { name: 'Sir Gouda', baseAmount: 30, unit: 'g', macrosPer100: { p: 25, c: 2, f: 27, kcal: 356 } },
           { name: 'Integralni kruh', baseAmount: 50, unit: 'g', macrosPer100: { p: 9, c: 43, f: 2, kcal: 240 } },
         ]
       },
@@ -166,10 +160,10 @@ export const dietPlan: DietDay[] = [
         ]
       },
       uzina: {
-        name: 'Proteinski puding',
+        name: 'Posni sir i kikiriki maslac',
         ingredients: [
-          { name: 'Proteinski puding', baseAmount: 200, unit: 'g', macrosPer100: { p: 10, c: 5, f: 1.5, kcal: 75 } },
-          { name: 'Orašasti plodovi', baseAmount: 15, unit: 'g', macrosPer100: { p: 15, c: 15, f: 60, kcal: 650 } },
+          { name: 'Posni sir', baseAmount: 200, unit: 'g', macrosPer100: { p: 12, c: 3, f: 0.5, kcal: 70 } },
+          { name: 'Kikiriki maslac', baseAmount: 20, unit: 'g', macrosPer100: { p: 25, c: 20, f: 50, kcal: 588 } },
         ]
       },
       vecera: {
@@ -245,9 +239,9 @@ export const dietPlan: DietDay[] = [
         ]
       },
       uzina: {
-        name: 'Smoothie s bananom',
+        name: 'Smoothie sa šumskim voćem',
         ingredients: [
-          { name: 'Banana', baseAmount: 100, unit: 'g', macrosPer100: { p: 1.1, c: 23, f: 0.3, kcal: 89 } },
+          { name: 'Šumsko voće', baseAmount: 100, unit: 'g', macrosPer100: { p: 1, c: 10, f: 0, kcal: 40 } },
           { name: 'Whey protein', baseAmount: 30, unit: 'g', macrosPer100: { p: 75, c: 5, f: 5, kcal: 380 } },
           { name: 'Mlijeko', baseAmount: 200, unit: 'ml', macrosPer100: { p: 3.3, c: 4.8, f: 1.5, kcal: 47 } },
         ]
@@ -296,7 +290,6 @@ export const dietPlan: DietDay[] = [
         ingredients: [
           { name: 'Posni sir', baseAmount: 200, unit: 'g', macrosPer100: { p: 12, c: 3, f: 0.5, kcal: 70 } },
           { name: 'Orasi', baseAmount: 20, unit: 'g', macrosPer100: { p: 15, c: 14, f: 65, kcal: 654 } },
-          { name: 'Med', baseAmount: 10, unit: 'g', macrosPer100: { p: 0, c: 82, f: 0, kcal: 304 } },
         ]
       }
     }

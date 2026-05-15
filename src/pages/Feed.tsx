@@ -20,7 +20,6 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
 const PAGE_SIZE = 10;
-const FEED_CATEGORIES = ['Sve', 'Opća rasprava', 'Lekcije', 'Napredak', 'Pobjede'];
 
 const SECONDARY_TABS = [
   { label: 'Trening', path: '/training' },
@@ -38,7 +37,6 @@ export default function Feed() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState('Sve');
   const [isSearchOpen, setIsSearchOpen] = useState(searchParams.get('search') === 'true');
   const [searchQuery, setSearchQuery] = useState('');
   const [challenges, setChallenges] = useState<any[]>([]);
@@ -132,8 +130,6 @@ export default function Feed() {
   const handleRetry = () => { subscribe(); };
 
   const filteredPosts = posts.filter((post) => {
-    // 1. Category filter
-    if (activeCategory !== 'Sve' && post.category !== activeCategory) return false;
 
     // 2. Search filter
     if (searchQuery.trim()) {
@@ -233,59 +229,6 @@ export default function Feed() {
       <div className="py-4 md:py-6 space-y-4">
         <CreatePost />
 
-        {/* Search & Category filter pills */}
-        <div className="space-y-4">
-          {/* Mobile Search Toggle */}
-          <div className="md:hidden flex items-center justify-between gap-4">
-            {!isSearchOpen ? (
-              <button 
-                onClick={() => setIsSearchOpen(true)}
-                className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors"
-              >
-                <Search className="w-4 h-4" />
-                <span className="text-xs font-bold uppercase tracking-widest">Pretraži</span>
-              </button>
-            ) : (
-              <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 animate-in fade-in zoom-in-95 duration-200">
-                <Search className="w-4 h-4 text-primary" />
-                <input
-                  autoFocus
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Pretraži..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white p-0"
-                />
-                <button 
-                  onClick={() => {
-                    setIsSearchOpen(false);
-                    setSearchQuery('');
-                  }}
-                  className="text-[10px] font-black text-muted-foreground uppercase"
-                >
-                  Zatvori
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
-            {FEED_CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={cn(
-                  'whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0',
-                  activeCategory === cat
-                    ? 'bg-primary text-black'
-                    : 'border border-white/20 text-muted-foreground hover:border-white/40 hover:text-white',
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {challenges.filter(c => c.active).map(c => (
           <div key={c.id} className="ursa-card p-4 border-l-4 border-l-primary bg-primary/5 flex items-start gap-4">
@@ -322,12 +265,6 @@ export default function Feed() {
           ) : posts.length === 0 ? (
             <div className="glass rounded-3xl p-12 text-center border border-white/5">
               <p className="text-muted-foreground text-sm">Još nema objava. Budi prvi!</p>
-            </div>
-          ) : sortedPosts.length === 0 ? (
-            <div className="glass rounded-3xl p-12 text-center border border-white/5">
-              <p className="text-muted-foreground text-sm">
-                Nema objava u kategoriji &ldquo;{activeCategory}&rdquo;.
-              </p>
             </div>
           ) : (
             <>

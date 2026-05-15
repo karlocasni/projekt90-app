@@ -125,7 +125,6 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         likes: [],
         commentsCount: 0,
         createdAt: serverTimestamp(),
-        category,
       };
 
       // Only include title if non-empty — Firestore rejects undefined

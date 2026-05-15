@@ -90,19 +90,27 @@ export default function Training() {
   };
 
   const calculateMacros = () => {
-    let bmr = 10 * calc.weight + 6.25 * calc.height - 5 * calc.age;
-    bmr = calc.gender === 'male' ? bmr + 5 : bmr - 161;
-    const tdee = bmr * calc.activity;
-    let targetCalories = tdee;
-    if (calc.goal === 'cut') targetCalories -= 500;
-    if (calc.goal === 'bulk') targetCalories += 500;
+    // Protein: 2.5g per kg
+    let p = Math.round(calc.weight * 2.5);
     
-    const pMultiplier = calc.gender === 'male' ? 2.5 : 2.0;
-    const p = Math.round(calc.weight * pMultiplier);
-    const f = 65;
-    const c = Math.max(0, Math.round((targetCalories - p * 4 - f * 9) / 4));
+    // Limits: 150g max for women, 250g max for men
+    if (calc.gender === 'female') {
+      p = Math.min(p, 150);
+    } else {
+      p = Math.min(p, 250);
+    }
+
+    // Fats: Always 70g
+    const f = 70;
+
+    // Carbs: cut = kg * 2, bulk = kg * 5
+    const cMultiplier = calc.goal === 'cut' ? 2 : 5;
+    const c = Math.round(calc.weight * cMultiplier);
     
-    return { p, c, f, calories: Math.round(targetCalories) };
+    // Total calories
+    const calories = (p * 4) + (c * 4) + (f * 9);
+    
+    return { p, c, f, calories };
   };
 
   const macros = calculateMacros();
@@ -224,6 +232,15 @@ export default function Training() {
         </div>
       ) : (
         <div className="space-y-8">
+          <div className="p-6 bg-primary/10 border border-primary/20 rounded-2xl">
+            <p className="text-sm text-primary/90 leading-relaxed italic">
+              Svaki dan treninga, poslije treninga uzimamo PWM - post workout meal. On se sastoji od jedne do dvije mjerice whey proteina i voća po izboru.{"\n"}
+              <span className="not-italic font-black block mt-2 text-primary">
+                NAPOMENA: ako postavljeni makro ciljevi ne idu ka tvom željenom cilju (npr. ako si na masi, a pomoću tih makrosa ne dobivaš na kilaži, postpuno povećavaj količinu ugljikohidrata. Sve obrnuto za definiciju.)
+              </span>
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="ursa-card p-8">
               <h3 className="text-2xl font-black mb-6 uppercase flex items-center gap-2">
