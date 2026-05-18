@@ -18,48 +18,11 @@ import UploadToast from './components/ui/UploadToast';
 import StripePayment from './components/payment/StripePayment';
 import { ShieldCheck } from 'lucide-react';
 
-// Payment Gate Component
-const Paywall = ({ onUnlock, isRenewal }: { onUnlock: () => void, isRenewal?: boolean }) => {
-  const [redirecting, setRedirecting] = useState(false);
-
-  const handleCheckout = () => {
-    setRedirecting(true);
-    // TODO: Stripe integration
-    setTimeout(() => setRedirecting(false), 2000);
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-      <div className="glass p-10 rounded-[2.5rem] max-w-md border-primary/20">
-        <h1 className="text-3xl font-black mb-4">{isRenewal ? 'Obnovi pretplatu' : 'Dovrši svoju pretplatu'}</h1>
-        <p className="text-muted-foreground mb-8">
-          {isRenewal 
-            ? 'Tvojih 90 dana je isteklo. Obnovi pretplatu za nastavak pristupa zajednici i tečajevima.'
-            : 'Tvoj račun je registriran, ali trebaš aktivnu pretplatu kako bi pristupio zajednici i tečajevima.'}
-        </p>
-        <button
-          onClick={handleCheckout}
-          disabled={redirecting}
-          className="w-full py-4 bg-primary text-black rounded-2xl font-black text-lg shadow-[0_0_20px_rgba(190,242,100,0.3)] mb-4 disabled:opacity-70"
-        >
-          {redirecting ? 'UČITAVANJE...' : 'PLATI 49€ ZA PRISTUP'}
-        </button>
-        <button
-          onClick={onUnlock}
-          className="text-xs text-muted hover:text-primary transition-colors"
-        >
-          [Dev] Simuliraj uspješno plaćanje
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // Inner app that has access to location
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
-  const [isMockActive, setIsMockActive] = useState(false);
+  const [isSessionActive, setIsSessionActive] = useState(false);
 
   if (loading) {
     return (
@@ -102,7 +65,7 @@ function AppRoutes() {
   const daysElapsed = getDaysElapsed();
   const daysRemaining = Math.max(0, subscriptionLimit - daysElapsed);
   const isTimeLocked = !profile?.isAdmin && daysRemaining <= 0;
-  const isBaseActive = profile?.status === 'active' || isMockActive;
+  const isBaseActive = profile?.status === 'active' || isSessionActive;
   const isActive = profile?.isAdmin || (isBaseActive && !isTimeLocked);
 
   if (!isActive) {
@@ -124,7 +87,7 @@ function AppRoutes() {
               </p>
               
               <div className="bg-black/20 p-8 rounded-3xl border border-white/5 mb-8">
-                <StripePayment onSuccess={() => setIsMockActive(true)} />
+                <StripePayment onSuccess={() => setIsSessionActive(true)} />
               </div>
 
               <p className="text-sm text-muted-foreground">

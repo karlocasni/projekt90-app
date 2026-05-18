@@ -40,7 +40,7 @@ export default function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!user || user.uid === 'mock-123') return;
+    if (!user) return;
     // No orderBy here — avoids a composite index requirement.
     // Notifications are sorted client-side after fetch.
     const q = query(

@@ -12,16 +12,10 @@ export default function Landing() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('register');
   const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
-  const { signInMock } = useAuth();
 
   const openAuth = (mode: 'login' | 'register') => {
     setAuthMode(mode);
     setIsAuthOpen(true);
-  };
-
-  const handlePaymentSuccess = () => {
-    // After payment, open registration
-    openAuth('register');
   };
 
   const scrollToVideo = () => {

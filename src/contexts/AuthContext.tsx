@@ -9,7 +9,6 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  signInMock: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,7 +16,6 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
-  signInMock: () => {},
 });
 
 const ADMIN_EMAILS = ['ursa2706@gmail.com', 'karlo.casni2@gmail.com', 'brunovujcec6@gmail.com'];
@@ -38,16 +36,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // DEV MOCK Check
-    const mockUser = localStorage.getItem('projekt90_mock_user');
-    if (mockUser) {
-      const u = JSON.parse(mockUser) as { uid: string; email: string; displayName: string };
-      setUser(u as unknown as User);
-      setProfile({ username: 'dev_user', email: u.email || '', status: 'active', xp: 0, level: 1, createdAt: '' });
-      setLoading(false);
-      return;
-    }
-
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       // Clean up any previous profile listener before starting a new one
       stopProfileListener();
@@ -99,21 +87,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     stopProfileListener();
-    localStorage.removeItem('projekt90_mock_user');
     setUser(null);
     setProfile(null);
     await firebaseSignOut(auth);
   };
 
-  const signInMock = () => {
-    const mock = { uid: 'mock-123', email: 'dev@projekt90.com', displayName: 'Dev User' };
-    localStorage.setItem('projekt90_mock_user', JSON.stringify(mock));
-    setUser(mock as unknown as User);
-    setProfile({ username: 'dev_user', email: 'dev@projekt90.com', status: 'active', xp: 0, level: 1, createdAt: '' });
-  };
+
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, signInMock }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

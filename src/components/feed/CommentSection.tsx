@@ -137,7 +137,7 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
         commentsCount: increment(1),
       }).catch((err) => console.warn('Failed to update commentsCount:', err));
 
-      if (profile && !user.uid.startsWith('mock-')) {
+      if (profile) {
         awardXP(user.uid, 10, profile.xp ?? 0).catch((err) =>
           console.warn('XP award failed:', err),
         );

@@ -134,7 +134,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
 
       const postRef = await addDoc(collection(db, 'posts'), postData);
 
-      if (profile && user.uid && !user.uid.startsWith('mock-')) {
+      if (profile && user.uid) {
         awardXP(user.uid, 50, profile.xp ?? 0).catch(() => {});
         createMentionNotifications(
           content.trim(), user.uid,

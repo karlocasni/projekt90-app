@@ -29,7 +29,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     // Only start listener if we have a real Firebase user
-    if (!currentUser || currentUser.uid === 'mock-123') {
+    if (!currentUser) {
       setLoading(false);
       return;
     }

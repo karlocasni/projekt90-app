@@ -63,7 +63,7 @@ export default function Feed() {
     setError(null);
     lastDocRef.current = null;
 
-    if (!currentUser || currentUser.uid === 'mock-123') {
+    if (!currentUser) {
       setLoading(false);
       return;
     }

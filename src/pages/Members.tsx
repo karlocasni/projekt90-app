@@ -35,7 +35,7 @@ export default function Members() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!currentUser || currentUser.uid === 'mock-123') {
+    if (!currentUser) {
       setLoading(false);
       return;
     }

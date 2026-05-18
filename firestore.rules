@@ -13,17 +13,20 @@ service cloud.firestore {
       // Any authenticated user can read profiles
       allow read: if request.auth != null;
       
-      // Only the profile owner can create, but cannot set isAdmin to true
+      // Only the profile owner can create, but cannot set protected fields
       allow create: if request.auth != null && request.auth.uid == userId && 
-        (!request.resource.data.keys().hasAny(['isAdmin']) || request.resource.data.isAdmin == false);
+        (!request.resource.data.keys().hasAny(['isAdmin', 'status', 'offsetDays']) || 
+         (request.resource.data.get('isAdmin', false) == false && 
+          request.resource.data.get('status', 'inactive') == 'inactive' && 
+          request.resource.data.get('offsetDays', 0) == 0));
       
       // Allow incrementing xp and level by others.
-      // Owner can update their profile but cannot change isAdmin.
+      // Owner can update their profile but cannot change protected fields.
       // Admins have full access.
       allow update: if request.auth != null && (
         isAdmin() ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'level'])) ||
-        (request.auth.uid == userId && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin']) || request.resource.data.isAdmin == resource.data.isAdmin))
+        (request.auth.uid == userId && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'status', 'offsetDays'])))
       );
       
       allow delete: if isAdmin();
