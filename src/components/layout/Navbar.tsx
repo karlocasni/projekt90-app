@@ -18,10 +18,7 @@ export default function Navbar() {
         to="/feed"
         className="flex items-center gap-2 font-bold text-xl tracking-tighter text-white flex-shrink-0"
       >
-        <Flame className="w-6 h-6 text-primary fill-primary" />
-        <span>
-          PROJEKT<span className="text-primary">90</span>
-        </span>
+        <img src="/logo-no-by-ursa.png" alt="Projekt90" className="h-10 md:h-12 w-auto object-contain scale-125 origin-left" />
       </Link>
 
       <div className="flex items-center gap-2 flex-shrink-0">

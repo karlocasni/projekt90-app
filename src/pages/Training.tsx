@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dumbbell, Utensils, ChevronDown, Calculator } from 'lucide-react';
+import { Dumbbell, Utensils, ChevronDown, Calculator, PlayCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
@@ -197,7 +197,14 @@ export default function Training() {
                             className="flex flex-col py-3 border-b border-white/5 gap-1"
                           >
                             <div className="flex justify-between items-center">
-                              <span className="font-bold">{ex.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold">{ex.name}</span>
+                                {ex.videoUrl && (
+                                  <a href={ex.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-white transition-colors" title="Pogledaj video vježbe">
+                                    <PlayCircle className="w-5 h-5" />
+                                  </a>
+                                )}
+                              </div>
                               <span className="text-primary font-black ml-4 whitespace-nowrap">
                                 {ex.sets}x{ex.reps}
                               </span>

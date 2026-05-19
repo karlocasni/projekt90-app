@@ -49,7 +49,7 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
           <span>Sigurno Plaćanje</span>
         </div>
         
-        <PaymentElement />
+        <PaymentElement options={{ wallets: { applePay: 'auto', googlePay: 'auto' } }} />
       </div>
 
       {errorMessage && (

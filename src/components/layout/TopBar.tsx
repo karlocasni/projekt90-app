@@ -9,10 +9,7 @@ export default function TopBar() {
         to="/feed"
         className="flex items-center gap-1.5 font-bold text-base tracking-tighter text-white"
       >
-        <Flame className="w-4 h-4 text-primary fill-primary" />
-        <span>
-          PROJEKT<span className="text-primary">90</span>
-        </span>
+        <img src="/logo-no-by-ursa.png" alt="Projekt90" className="h-8 w-auto object-contain scale-125 origin-left" />
       </Link>
 
       <div className="flex items-center gap-1">

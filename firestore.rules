@@ -94,5 +94,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    match /mail/{mailId} {
+      allow create: if request.auth != null && request.resource.data.to == request.auth.token.email;
+    }
   }
 }

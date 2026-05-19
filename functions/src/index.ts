@@ -31,9 +31,7 @@ export const createPaymentIntent = functions.https.onCall(
           userId: context.auth.uid,
           email: context.auth.token.email || "",
         },
-        automatic_payment_methods: {
-          enabled: true,
-        },
+        payment_method_types: ["card"],
       });
 
       return {

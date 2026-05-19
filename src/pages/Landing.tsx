@@ -43,8 +43,7 @@ export default function Landing() {
       {/* Header */}
       <header className="fixed top-0 inset-x-0 z-[60] py-6 px-6 md:px-12 flex justify-between items-center bg-background/50 backdrop-blur-md border-b border-white/5">
         <div className="flex items-center gap-2">
-          <Zap className="w-6 h-6 text-primary fill-primary" />
-          <span className="text-xl font-black tracking-tighter">PROJEKT90</span>
+          <img src="/logo-no-by-ursa.png" alt="Projekt90" className="h-10 md:h-12 w-auto object-contain scale-125 origin-left" />
         </div>
         <button 
           onClick={() => openAuth('login')}
@@ -60,7 +59,12 @@ export default function Landing() {
         <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/20 rounded-full blur-[180px] pointer-events-none animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none" />
 
-        
+        {/* Ursa Background Image */}
+        <img 
+          src="/ursa_projekt90.png" 
+          alt="Ursa" 
+          className="absolute top-10 md:top-0 right-[-20%] md:right-[0%] lg:right-[5%] w-[140vw] md:w-[900px] lg:w-[1100px] h-auto object-contain object-top opacity-10 pointer-events-none select-none z-0"
+        />        
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -302,36 +306,32 @@ export default function Landing() {
               <h2 className="text-5xl md:text-8xl font-black uppercase leading-none mb-6">REKLAME LAŽU. <br /><span className="text-primary">BROJKE NE.</span></h2>
               <p className="text-xl md:text-2xl text-muted-foreground font-medium italic">Transformacije naših članova su najbolji dokaz efikasnosti Projekt90 sistema.</p>
             </div>
-            <div className="hidden md:block">
-              <div className="flex -space-x-4 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className="w-12 h-12 rounded-full border-2 border-background bg-zinc-800" />
-                ))}
-              </div>
-              <p className="text-sm font-bold uppercase tracking-widest text-primary">Pridruži se transformaciji</p>
-            </div>
+
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+            {[
+              { name: 'ALEM M.', result: '-14kg', img: '/transformations/ALEM M., -14kg.jpg' },
+              { name: 'ANTE P.', result: '-6kg', img: '/transformations/ANTE P., -6kg.jpg' },
+              { name: 'ANTUN G.', result: '-7kg', img: '/transformations/ANTUN G., -7kg.jpg' },
+              { name: 'KARLO M.', result: '+4kg', img: '/transformations/KARLO M., +4kg.jpg' },
+              { name: 'KLARA P.', result: '-7kg', img: '/transformations/KLARA P., -7kg.jpg' },
+              { name: 'MIROSLAV J.', result: '+3kg', img: '/transformations/MIROSLAV J., +3kg.jpg' }
+            ].map((item, i) => (
               <motion.div 
                 key={i} 
                 {...fadeIn}
-                className="relative aspect-[3/4] rounded-[2rem] overflow-hidden glass border-white/10 group shadow-2xl"
+                className="relative aspect-square rounded-[2rem] overflow-hidden glass border-white/10 group shadow-2xl"
               >
-                <div className="absolute top-6 left-6 z-20 flex gap-2">
-                  <span className="px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs font-black uppercase text-white">Prije</span>
-                  <span className="px-3 py-1 bg-primary rounded-full text-xs font-black uppercase text-black">Poslije</span>
-                </div>
                 <img 
-                  src={`https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=800&auto=format&fit=crop`} 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
-                  alt="Transformation"
+                  src={item.img} 
+                  className="w-full h-full object-cover scale-[1.15] transition-transform duration-700 hover:scale-[1.25]"
+                  alt={`Transformacija ${item.name}`}
                   loading="lazy"
                 />
-                <div className="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-black to-transparent z-10">
-                  <p className="text-2xl font-black mb-1">MARKO P.</p>
-                  <p className="text-primary font-bold">-14kg & definicija</p>
+                <div className="absolute bottom-0 inset-x-0 p-4 md:p-8 bg-gradient-to-t from-black/80 to-transparent z-10">
+                  <p className="text-base md:text-2xl font-black mb-0 md:mb-1 truncate">{item.name}</p>
+                  <p className="text-xs md:text-base text-primary font-bold">{item.result}</p>
                 </div>
               </motion.div>
             ))}
@@ -393,10 +393,6 @@ export default function Landing() {
           <div className="space-y-4">
             {[
               { 
-                q: "Mogu li trenirati od kuće?", 
-                a: "Naravno! Imamo specifične programe dizajnirane za trening kod kuće sa minimalno opreme, kao i full gym programe." 
-              },
-              { 
                 q: "Što ako sam početnik?", 
                 a: "Projekt90 je dizajniran da te vodi od nule. Svaka vježba ima video instrukcije i objašnjenje tehnike." 
               },
@@ -440,44 +436,35 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-20 px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-12 mb-20">
-            <div className="col-span-2">
-              <div className="flex items-center gap-2 mb-6">
-                <Zap className="w-8 h-8 text-primary fill-primary" />
-                <span className="text-2xl font-black tracking-tighter">PROJEKT90</span>
-              </div>
-              <p className="text-muted-foreground text-lg max-w-sm mb-8 leading-relaxed">
-                Elitna platforma za transformaciju tijela i uma. Pridruži se pokretu i postani najbolja verzija sebe.
-              </p>
-              <div className="flex gap-4">
-                <a href="https://instagram.com/stjepanursa" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-primary hover:text-black transition-all cursor-pointer">
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a href="https://facebook.com/stjepanursa" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-primary hover:text-black transition-all cursor-pointer">
-                  <Facebook className="w-5 h-5" />
-                </a>
-                <a href="https://nemaneide.com" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-primary hover:text-black transition-all cursor-pointer">
-                  <Globe className="w-5 h-5" />
-                </a>
-              </div>
+          <div className="flex flex-col items-center text-center mb-16">
+            <img src="/logo-by-ursa.png" alt="Projekt90 by Ursa" className="h-14 md:h-20 w-auto object-contain scale-125 mb-8" />
+            <p className="text-muted-foreground text-lg max-w-md mb-8 leading-relaxed">
+              Elitna platforma za transformaciju tijela i uma. Pridruži se pokretu i postani najbolja verzija sebe.
+            </p>
+            
+            <div className="flex justify-center gap-4 mb-16">
+              <a href="https://instagram.com/stjepanursa" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-primary hover:text-black transition-all cursor-pointer">
+                <Instagram className="w-5 h-5" />
+              </a>
+              <a href="https://facebook.com/stjepanursa" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-primary hover:text-black transition-all cursor-pointer">
+                <Facebook className="w-5 h-5" />
+              </a>
+              <a href="https://nemaneide.com" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-primary hover:text-black transition-all cursor-pointer">
+                <Globe className="w-5 h-5" />
+              </a>
             </div>
-            <div>
-              <h4 className="font-black uppercase tracking-widest text-sm mb-6">Navigacija</h4>
-              <ul className="space-y-4 text-muted-foreground font-medium">
-                <li className="hover:text-primary cursor-pointer transition-colors">Treninzi</li>
-                <li className="hover:text-primary cursor-pointer transition-colors">Prehrana</li>
-                <li className="hover:text-primary cursor-pointer transition-colors">Rezultati</li>
-                <li className="hover:text-primary cursor-pointer transition-colors">Blog</li>
+
+            <div className="flex flex-col items-center justify-center space-y-6">
+              <ul className="flex flex-col md:flex-row items-center gap-4 md:gap-8 text-muted-foreground font-medium">
+                <li><a href="https://nemaneide.com/nema-neide-aplikacija-pravila-o-privatnosti/" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Uvjeti korištenja</a></li>
+                <li><a href="https://nemaneide.com/nema-neide-aplikacija-pravila-o-privatnosti/" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Privatnost</a></li>
+                <li><a href="https://nemaneide.com/nema-neide-aplikacija-pravila-o-privatnosti/" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Povrat novca</a></li>
               </ul>
-            </div>
-            <div>
-              <h4 className="font-black uppercase tracking-widest text-sm mb-6">Pravno</h4>
-              <ul className="space-y-4 text-muted-foreground font-medium">
-                <li className="hover:text-primary cursor-pointer transition-colors">Uvjeti korištenja</li>
-                <li className="hover:text-primary cursor-pointer transition-colors">Privatnost</li>
-                <li className="hover:text-primary cursor-pointer transition-colors">Povrat novca</li>
-                <li className="hover:text-primary cursor-pointer transition-colors">Kontakt</li>
-              </ul>
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-muted-foreground font-medium">
+                <a href="tel:+385992088022" className="hover:text-primary transition-colors">+385 99 208 8022</a>
+                <span className="hidden sm:inline text-white/20">|</span>
+                <a href="mailto:kontakt@nemaneide.com" className="hover:text-primary transition-colors">kontakt@nemaneide.com</a>
+              </div>
             </div>
           </div>
           <div className="flex flex-col md:flex-row justify-between items-center pt-10 border-t border-white/5 gap-4 text-center md:text-left">

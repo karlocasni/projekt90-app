@@ -1,22 +1,25 @@
+import { lazy, Suspense, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import AppShell from './components/layout/AppShell';
 import Landing from './pages/Landing';
-import Feed from './pages/Feed';
-import Lectures from './pages/Lectures';
-import Training from './pages/Training';
-import Profile from './pages/Profile';
-import Progress from './pages/Progress';
-import Messages from './pages/Messages';
-import Challenges from './pages/Challenges';
-import LeaderboardPage from './pages/Leaderboard';
-import Members from './pages/Members';
 import { useAuth } from './contexts/AuthContext';
-import { useState } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { UploadProvider } from './contexts/UploadContext';
 import UploadToast from './components/ui/UploadToast';
-import StripePayment from './components/payment/StripePayment';
-import { ShieldCheck } from 'lucide-react';
+import { auth } from './lib/firebase';
+import { signOut } from 'firebase/auth';
+import { ShieldCheck, LogOut } from 'lucide-react';
+
+const AppShell = lazy(() => import('./components/layout/AppShell'));
+const Feed = lazy(() => import('./pages/Feed'));
+const Lectures = lazy(() => import('./pages/Lectures'));
+const Training = lazy(() => import('./pages/Training'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Progress = lazy(() => import('./pages/Progress'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Challenges = lazy(() => import('./pages/Challenges'));
+const LeaderboardPage = lazy(() => import('./pages/Leaderboard'));
+const Members = lazy(() => import('./pages/Members'));
+const StripePayment = lazy(() => import('./components/payment/StripePayment'));
 
 // Inner app that has access to location
 function AppRoutes() {
@@ -87,12 +90,26 @@ function AppRoutes() {
               </p>
               
               <div className="bg-black/20 p-8 rounded-3xl border border-white/5 mb-8">
-                <StripePayment onSuccess={() => setIsSessionActive(true)} />
+                <Suspense fallback={
+                  <div className="min-h-[200px] flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                }>
+                  <StripePayment onSuccess={() => setIsSessionActive(true)} />
+                </Suspense>
               </div>
 
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-6">
                 Jednokratna uplata od 49€. Bez pretplate.
               </p>
+
+              <button
+                onClick={() => signOut(auth)}
+                className="flex items-center justify-center gap-2 w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold transition-colors border border-white/10"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>Odjavi se i vrati na naslovnicu</span>
+              </button>
             </div>
           </div>
         } />
@@ -102,31 +119,37 @@ function AppRoutes() {
   }
 
   return (
-    <AppShell>
-      {daysRemaining <= 7 && (
-        <div className="bg-primary text-black py-2 px-4 text-center font-bold text-sm">
-          ⚠️ Preostalo još {daysRemaining} dana pristupa. <button className="underline ml-2">Obnovi sada</button>
-        </div>
-      )}
-      {/* resetKey ensures ErrorBoundary clears on each route change */}
-      <ErrorBoundary resetKey={location.pathname}>
-        <Routes>
-          <Route path="/feed" element={<Feed />} />
-          <Route path="/lectures" element={<Lectures />} />
-          <Route path="/training" element={<Training />} />
-          <Route path="/progress" element={<Progress />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile/:userId" element={<Profile />} />
-          <Route path="/profile/u/:username" element={<Profile />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/messages/:chatId" element={<Messages />} />
-          <Route path="/challenges" element={<Challenges />} />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/members" element={<Members />} />
-          <Route path="*" element={<Navigate to="/feed" replace />} />
-        </Routes>
-      </ErrorBoundary>
-    </AppShell>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <AppShell>
+        {daysRemaining <= 7 && (
+          <div className="bg-primary text-black py-2 px-4 text-center font-bold text-sm">
+            ⚠️ Preostalo još {daysRemaining} dana pristupa. <button className="underline ml-2">Obnovi sada</button>
+          </div>
+        )}
+        {/* resetKey ensures ErrorBoundary clears on each route change */}
+        <ErrorBoundary resetKey={location.pathname}>
+          <Routes>
+            <Route path="/feed" element={<Feed />} />
+            <Route path="/lectures" element={<Lectures />} />
+            <Route path="/training" element={<Training />} />
+            <Route path="/progress" element={<Progress />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:userId" element={<Profile />} />
+            <Route path="/profile/u/:username" element={<Profile />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/messages/:chatId" element={<Messages />} />
+            <Route path="/challenges" element={<Challenges />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/members" element={<Members />} />
+            <Route path="*" element={<Navigate to="/feed" replace />} />
+          </Routes>
+        </ErrorBoundary>
+      </AppShell>
+    </Suspense>
   );
 }
 

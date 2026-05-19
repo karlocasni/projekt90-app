@@ -64,13 +64,13 @@ export async function validateVideo(file: File, isAdmin: boolean = false): Promi
   });
 }
 
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
-
 export async function compressVideo(
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<Blob> {
+  const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+  const { fetchFile } = await import('@ffmpeg/util');
+
   const ffmpeg = new FFmpeg();
   
   if (onProgress) {
