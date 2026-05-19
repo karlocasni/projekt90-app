@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
+import * as nodemailer from "nodemailer";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require("stripe");
@@ -79,3 +80,55 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
 
   res.json({received: true});
 });
+
+/**
+ * Sends email on new document in 'mail' collection via Zoho SMTP.
+ */
+export const sendMailFromFirestore = functions.firestore
+  .document("mail/{docId}")
+  .onCreate(async (snap) => {
+    const data = snap.data();
+    const to = data.to as string;
+    const subject = data.message?.subject as string;
+    const html = data.message?.html as string;
+
+    if (!to || !subject || !html) {
+      await snap.ref.update({
+        delivery: {state: "ERROR", error: "Missing to/subject/html fields"},
+      });
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.zoho.eu",
+      port: 465,
+      secure: true,
+      auth: {
+        user: "kontakt@nemaneide.com",
+        pass: "Duvanjskopolje357892!",
+      },
+    });
+
+    try {
+      await transporter.sendMail({
+        from: "\"Projekt90\" <kontakt@nemaneide.com>",
+        to,
+        subject,
+        html,
+      });
+
+      await snap.ref.update({
+        delivery: {
+          state: "SUCCESS",
+          endTime: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+      console.log(`Email uspješno poslan na: ${to}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "SMTP error";
+      console.error("Email greška:", message);
+      await snap.ref.update({
+        delivery: {state: "ERROR", error: message},
+      });
+    }
+  });

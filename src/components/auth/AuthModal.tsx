@@ -42,9 +42,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         // Postavi ime na Auth objektu kako bi radilo u %DISPLAY_NAME% predlošku
         await updateProfile(user, { displayName: finalUsername });
         
-        // Pošalji verifikacijski email
-        await sendEmailVerification(user);
-
         // Dodaj custom HTML mail u red čekanja (Firebase Trigger Email)
         try {
           await addDoc(collection(db, 'mail'), {

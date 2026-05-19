@@ -133,21 +133,16 @@ export default function Landing() {
 
           <motion.div 
             {...fadeIn}
-            className="relative aspect-video max-w-5xl mx-auto glass rounded-[2.5rem] overflow-hidden border border-white/10 group cursor-pointer shadow-2xl"
+            className="relative aspect-video max-w-5xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl"
           >
-            {/* Video Placeholder */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/80 via-transparent to-black/40 z-10" />
-            <img 
-              src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1200&auto=format&fit=crop" 
-              className="w-full h-full object-cover grayscale opacity-60 group-hover:scale-105 transition-transform duration-700"
-              alt="Gym motivation"
+            <iframe
+              src="https://www.youtube.com/embed/M_kpOFFapWQ?rel=0&modestbranding=1"
+              title="Projekt90 VSL Video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
               loading="lazy"
             />
-            <div className="absolute inset-0 z-20 flex items-center justify-center">
-              <div className="w-20 h-20 md:w-24 md:h-24 bg-primary text-black rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(190,242,100,0.5)] group-hover:scale-110 transition-transform">
-                <Play className="w-8 h-8 md:w-10 md:h-10 fill-current ml-1" />
-              </div>
-            </div>
           </motion.div>
         </div>
       </section>
