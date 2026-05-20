@@ -37,6 +37,9 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
       setErrorMessage(error.message || 'An error occurred during payment.');
       setLoading(false);
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+      if (typeof (window as any).fbq === 'function') {
+        (window as any).fbq('track', 'Purchase', { value: 49, currency: 'EUR' });
+      }
       onPaymentSuccess();
     }
   };

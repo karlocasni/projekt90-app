@@ -172,6 +172,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           <button 
             type="submit"
             disabled={loading}
+            onClick={() => {
+              if (!isLogin && typeof (window as any).fbq === 'function') {
+                (window as any).fbq('track', 'Lead');
+              }
+            }}
             className="w-full py-4 bg-primary text-black rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
           >
             {loading ? 'OBRADA...' : (isLogin ? 'PRIJAVI SE' : 'REGISTRIRAJ SE')}
