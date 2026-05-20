@@ -5,13 +5,14 @@ import Navbar from './Navbar';
 import BottomNav from './BottomNav';
 import Leaderboard from '../feed/Leaderboard';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Tabs that belong to the Zajednica section
-const ZAJEDNICA_TABS = [
-  { label: 'Trening', path: '/training' },
-  { label: 'Izazovi', path: '/challenges' },
-  { label: 'Rang lista', path: '/leaderboard' },
-  { label: 'Članovi', path: '/members' },
+// All possible Zajednica tabs
+const ALL_ZAJEDNICA_TABS = [
+  { label: 'Trening', path: '/training', adminOnly: false },
+  { label: 'Izazovi', path: '/challenges', adminOnly: false },
+  { label: 'Rang lista', path: '/leaderboard', adminOnly: false },
+  { label: 'Članovi', path: '/members', adminOnly: true },
 ];
 
 // Routes where the Zajednica tab bar should be visible
@@ -23,6 +24,9 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const location = useLocation();
+  const { profile } = useAuth();
+  const isAdmin = profile?.isAdmin === true;
+  const ZAJEDNICA_TABS = ALL_ZAJEDNICA_TABS.filter(t => !t.adminOnly || isAdmin);
   const isZajednica = ZAJEDNICA_PATHS.some((p) => location.pathname === p);
 
   return (

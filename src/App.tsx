@@ -144,7 +144,7 @@ function AppRoutes() {
             <Route path="/messages/:chatId" element={<Messages />} />
             <Route path="/challenges" element={<Challenges />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/members" element={<Members />} />
+            <Route path="/members" element={profile?.isAdmin ? <Members /> : <Navigate to="/feed" replace />} />
             <Route path="*" element={<Navigate to="/feed" replace />} />
           </Routes>
         </ErrorBoundary>

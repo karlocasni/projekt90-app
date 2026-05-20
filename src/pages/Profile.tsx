@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Phone, Mail, Camera, ShieldCheck, LogOut, ArrowLeft, ChevronDown } from 'lucide-react';
-import { db, storage } from '../lib/firebase';
+import { User, Phone, Mail, Camera, ShieldCheck, LogOut, ArrowLeft, ChevronDown, KeyRound } from 'lucide-react';
+import { db, storage, auth } from '../lib/firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import XPBadge from '../components/ui/XPBadge';
 import { UserProfile } from '../types/post';
@@ -27,7 +28,19 @@ export default function Profile() {
   
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [resetSent, setResetSent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      setResetSent(true);
+      setTimeout(() => setResetSent(false), 5000);
+    } catch (err) {
+      console.error('Reset error:', err);
+    }
+  };
 
   // Determine if we are looking at our own profile
   const isOwnProfile = (!paramId && !paramUsername) || paramId === user?.uid || (paramUsername && paramUsername === myProfile?.username);
@@ -450,14 +463,24 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Sign out (only on own profile) */}
+        {/* Reset password + Sign out (only on own profile) */}
         {isOwnProfile && (
-          <button
-            onClick={signOut}
-            className="w-full py-4 ursa-card border-red-500/20 text-red-400 font-black text-lg flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors"
-          >
-            <LogOut className="w-5 h-5" /> ODJAVA
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={handlePasswordReset}
+              disabled={resetSent}
+              className="w-full py-4 ursa-card border-primary/20 text-primary font-black text-sm flex items-center justify-center gap-2 hover:bg-primary/10 transition-colors disabled:opacity-60"
+            >
+              <KeyRound className="w-5 h-5" />
+              {resetSent ? '✓ LINK POSLAN NA TVOJ EMAIL' : 'RESETIRAJ LOZINKU'}
+            </button>
+            <button
+              onClick={signOut}
+              className="w-full py-4 ursa-card border-red-500/20 text-red-400 font-black text-lg flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut className="w-5 h-5" /> ODJAVA
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -40,7 +40,7 @@ export default function Members() {
       return;
     }
 
-    const q = query(collection(db, 'profiles'), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, 'profiles'), orderBy('createdAt', 'desc'), limit(5000));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
