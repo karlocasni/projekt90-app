@@ -29,6 +29,15 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Ensure ALL navigation requests (including those with Meta/UTM query
+        // params like ?fbclid=...) fall back to index.html. Without this the
+        // service worker may fail to match a cached entry and return a network
+        // error when the device is offline or the CDN is slow.
+        navigateFallback: '/index.html',
+        // Allow every URL path to use the fallback (regex matches everything).
+        navigateFallbackAllowlist: [/^(?!\/__).*/],
+        // Remove caches from older service worker versions automatically.
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             // Cache images
