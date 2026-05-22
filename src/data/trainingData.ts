@@ -22,7 +22,7 @@ export const workoutPlanMale = [
     notes: 'Za prsa nam je najbitnije da kod svih potisaka i razvlačenja, uvijek ramena (lopatice) zategnemo prema nazad, isprsimo se i blago napravimo mostić u djelu kralježnice kako bi se maksimalno stimulirala prsa, a maksimalno izbjegla kontrakcija tricepsa i prednjeg ramena.',
     exercises: [
       { name: 'LAGANO ZAGRIJAVANJE NA BICIKLU 5 min', sets: '1', reps: '5 min', note: '(ili bilo koja druga kardio sprava koja ti paše)' },
-      { videoUrl: 'https://youtube.com/shorts/5U6UGr2qdsQ', name: 'RAZVLAČENJE ZA PRSA NA SPRAVI (peck deck fly)', sets: '3', reps: '15', note: 'Prva vježba kao lagani uvod u trening. Radiš 3 serije po 15 ponavljanja.' },
+      { name: 'RAZVLAČENJE ZA PRSA NA SPRAVI (peck deck fly)', sets: '3', reps: '15', note: 'Prva vježba kao lagani uvod u trening. Radiš 3 serije po 15 ponavljanja.' },
       { videoUrl: 'https://youtube.com/watch?v=XjZeyR3o-Uc', name: 'RAVNI BENCH PRESS SA ŠIPKOM', sets: '5', reps: '8-12' },
       { videoUrl: 'https://youtube.com/watch?v=6LzDMvtkSzU', name: 'SUPERSET - RAVNI POTISAK BUČICAMA', sets: '4', reps: '8-12', note: 'Superset - radiš jednu iza druge bez odmora, ponavljaš 4 puta' },
       { videoUrl: 'https://youtube.com/shorts/4Jm2DGZM6j0', name: 'SUPERSET - RAZVLAČENJE BUČICAMA NA RAVNOJ KLUPI', sets: '4', reps: '8-12', note: 'Odmah iza potiska, bez odmora' },
