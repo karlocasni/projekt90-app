@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Heart } from 'lucide-react';
 import {
   addDoc,
   collection,
@@ -12,6 +12,8 @@ import {
   updateDoc,
   increment,
   deleteDoc,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -184,6 +186,20 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
     }
   };
 
+  const toggleCommentLike = async (commentId: string, likedBy: string[]) => {
+    if (!user) return;
+    const ref = doc(db, 'posts', postId, 'comments', commentId);
+    const liked = likedBy.includes(user.uid);
+    try {
+      await updateDoc(ref, {
+        likedBy: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+        likes: increment(liked ? -1 : 1),
+      });
+    } catch (err) {
+      console.warn('Like failed:', err);
+    }
+  };
+
   return (
     <div className="pt-6 space-y-6">
       {/* Comment input */}
@@ -267,13 +283,30 @@ export default function CommentSection({ postId, postAuthorId }: CommentSectionP
                   {(user?.uid === c.authorId || profile?.isAdmin) && (
                     <button
                       onClick={() => deleteComment(c.id)}
-                      className="text-xs text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className={`text-xs text-red-400 transition-opacity ${
+                        profile?.isAdmin ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
                     >
                       Obriši
                     </button>
                   )}
                 </div>
                 <p className="text-sm text-foreground/80">{renderWithMentions(c.content)}</p>
+                {/* Comment like button */}
+                <button
+                  onClick={() => toggleCommentLike(c.id, (c as any).likedBy || [])}
+                  disabled={!user}
+                  className="flex items-center gap-1 mt-2 text-xs text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                >
+                  <Heart
+                    className={`w-3.5 h-3.5 ${
+                      user && ((c as any).likedBy || []).includes(user.uid)
+                        ? 'fill-red-400 text-red-400'
+                        : ''
+                    }`}
+                  />
+                  <span>{(c as any).likes || 0}</span>
+                </button>
               </div>
             </div>
           ))

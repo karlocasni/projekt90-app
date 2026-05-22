@@ -7,6 +7,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { awardXP } from '../lib/xp';
 
 import { workoutPlanMale, workoutPlanFemale, trainingDescription } from '../data/trainingData';
+import { homeWorkoutPlanMale, homeWorkoutPlanFemale, homeTrainingDescription } from '../data/homeTrainingData';
 import { dietPlan } from '../data/dietData';
 
 type CalcState = {
@@ -47,9 +48,13 @@ export default function Training() {
   const [loggedToday, setLoggedToday] = useState<Set<string>>(new Set());
   const [loggingDay, setLoggingDay] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [trainingMode, setTrainingMode] = useState<'gym' | 'home'>('gym');
 
   const isFemale = profile?.gender === 'female';
-  const workoutPlan = isFemale ? workoutPlanFemale : workoutPlanMale;
+  const workoutPlan = trainingMode === 'gym'
+    ? (isFemale ? workoutPlanFemale : workoutPlanMale)
+    : (isFemale ? homeWorkoutPlanFemale : homeWorkoutPlanMale);
+  const currentDescription = trainingMode === 'gym' ? trainingDescription : homeTrainingDescription;
 
   useEffect(() => {
     if (profile?.macroCalc && !loaded) {
@@ -156,13 +161,29 @@ export default function Training() {
         <div className="space-y-6">
           <div className="ursa-card p-6 bg-white/5 border border-white/10 text-sm leading-relaxed text-white/80 whitespace-pre-wrap">
             <p>
-              {showFullDescription ? trainingDescription.full : trainingDescription.short}
+              {showFullDescription ? currentDescription.full : currentDescription.short}
             </p>
             <button
               onClick={() => setShowFullDescription(!showFullDescription)}
               className="text-primary font-bold mt-2 hover:underline"
             >
               {showFullDescription ? 'Prikaži manje' : 'Pročitaj više...'}
+            </button>
+          </div>
+
+          {/* Gym / Home toggle */}
+          <div className="flex bg-white/5 p-1 rounded-2xl w-full max-w-xs">
+            <button
+              onClick={() => setTrainingMode('gym')}
+              className={cn('flex-1 py-2.5 rounded-xl font-black text-sm transition-all', trainingMode === 'gym' ? 'bg-primary text-black' : 'text-white/60 hover:text-white')}
+            >
+              🏋️ TERETANA
+            </button>
+            <button
+              onClick={() => setTrainingMode('home')}
+              className={cn('flex-1 py-2.5 rounded-xl font-black text-sm transition-all', trainingMode === 'home' ? 'bg-primary text-black' : 'text-white/60 hover:text-white')}
+            >
+              🏠 KUĆNI
             </button>
           </div>
 

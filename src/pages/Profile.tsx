@@ -10,6 +10,18 @@ import XPBadge from '../components/ui/XPBadge';
 import { UserProfile } from '../types/post';
 import { calculateLevel } from '../lib/xp';
 
+function parseFirestoreDate(val: unknown): Date | null {
+  if (!val) return null;
+  if (typeof val === 'object' && val !== null && 'toDate' in val) {
+    return (val as { toDate: () => Date }).toDate();
+  }
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
 export default function Profile() {
   const { userId: paramId, username: paramUsername } = useParams();
   const navigate = useNavigate();
@@ -386,15 +398,18 @@ export default function Profile() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground uppercase text-xs">Datum pridruživanja:</span>
                       <span className="font-bold text-white">
-                        {viewedProfile?.createdAt ? new Date(viewedProfile.createdAt).toLocaleDateString('hr-HR') : 'Nepoznato'}
+                        {(() => { const d = parseFirestoreDate(viewedProfile?.createdAt); return d ? d.toLocaleDateString('hr-HR') : 'Nepoznato'; })()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground uppercase text-xs">Datum isteka (90d + offset):</span>
                       <span className="font-bold text-primary">
-                        {viewedProfile?.createdAt 
-                          ? new Date(new Date(viewedProfile.createdAt).getTime() + (90 + (viewedProfile.offsetDays || 0)) * 24 * 60 * 60 * 1000).toLocaleDateString('hr-HR') 
-                          : 'Nepoznato'}
+                        {(() => {
+                          const d = parseFirestoreDate(viewedProfile?.createdAt);
+                          if (!d) return 'Nepoznato';
+                          const expiry = new Date(d.getTime() + (90 + (viewedProfile?.offsetDays || 0)) * 24 * 60 * 60 * 1000);
+                          return expiry.toLocaleDateString('hr-HR');
+                        })()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users } from 'lucide-react';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { Users, Copy, Check } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile } from '../types/post';
 import XPBadge from '../components/ui/XPBadge';
@@ -13,12 +13,24 @@ interface MemberEntry {
   avatar_url?: string;
   xp: number;
   level: number;
-  createdAt: string;
+  createdAt: unknown;
+  status: string;
+  email?: string;
 }
 
-function formatJoinDate(dateStr: string): string {
+function formatJoinDate(createdAt: unknown): string {
   try {
-    return new Date(dateStr).toLocaleDateString('hr-HR', {
+    let date: Date;
+    // Firestore Timestamp object
+    if (createdAt && typeof createdAt === 'object' && 'toDate' in createdAt) {
+      date = (createdAt as { toDate: () => Date }).toDate();
+    } else if (typeof createdAt === 'string' && createdAt) {
+      date = new Date(createdAt);
+    } else {
+      return '';
+    }
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('hr-HR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -31,8 +43,14 @@ function formatJoinDate(dateStr: string): string {
 export default function Members() {
   const { user: currentUser } = useAuth();
   const [members, setMembers] = useState<MemberEntry[]>([]);
+  const [allProfiles, setAllProfiles] = useState<MemberEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const unpaidEmails = allProfiles
+    .filter((m) => m.status !== 'active' && m.email)
+    .map((m) => m.email as string);
 
   useEffect(() => {
     if (!currentUser) {
@@ -40,11 +58,30 @@ export default function Members() {
       return;
     }
 
-    const q = query(collection(db, 'profiles'), orderBy('createdAt', 'desc'), limit(5000));
+    const q = query(
+      collection(db, 'profiles'),
+      orderBy('createdAt', 'desc'),
+    );
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         setMembers(
+          snapshot.docs
+            .map((d) => {
+              const data = d.data() as UserProfile;
+              return {
+                uid: d.id,
+                username: data.username || 'Nepoznat',
+                avatar_url: data.avatar_url,
+                xp: data.xp ?? 0,
+                level: data.level ?? 1,
+                createdAt: data.createdAt ?? '',
+                status: data.status || 'inactive',
+              };
+            })
+            .filter((m) => m.status === 'active'),
+        );
+        setAllProfiles(
           snapshot.docs.map((d) => {
             const data = d.data() as UserProfile;
             return {
@@ -53,7 +90,9 @@ export default function Members() {
               avatar_url: data.avatar_url,
               xp: data.xp ?? 0,
               level: data.level ?? 1,
-              createdAt: data.createdAt || '',
+              createdAt: data.createdAt ?? '',
+              status: data.status || 'inactive',
+              email: data.email || '',
             };
           }),
         );
@@ -75,11 +114,36 @@ export default function Members() {
         <Users className="w-6 h-6 text-primary" />
         <h1 className="font-heading font-black text-3xl uppercase tracking-tighter">ČLANOVI</h1>
         {!loading && (
-          <span className="text-xs text-muted-foreground font-medium ml-auto">
-            {members.length} članova
+          <span className="text-xs font-bold ml-auto flex items-center gap-2">
+            <span className="px-2 py-0.5 bg-primary/15 text-primary rounded-full border border-primary/30">
+              {members.length} platilo
+            </span>
           </span>
         )}
       </div>
+
+      {/* Copy unpaid emails button */}
+      {!loading && unpaidEmails.length > 0 && (
+        <div className="ursa-card p-4 border-yellow-500/20 bg-yellow-500/5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-black text-yellow-400 uppercase tracking-widest">Registrirani bez plaćanja</p>
+              <p className="text-sm text-white/70 mt-0.5">{unpaidEmails.length} korisnika — kopiraj za slanje maila</p>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(unpaidEmails.join('; '));
+                setCopied(true);
+                setTimeout(() => setCopied(false), 3000);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 rounded-xl font-black text-xs uppercase tracking-widest transition-colors whitespace-nowrap"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Kopirano!' : 'Kopiraj emailove'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -123,7 +187,7 @@ export default function Members() {
                   {member.username}
                 </span>
                 <XPBadge xp={member.xp} compact />
-                {member.createdAt && (
+                {Boolean(member.createdAt) && (
                   <span className="text-[10px] text-muted-foreground">
                     {formatJoinDate(member.createdAt)}
                   </span>

@@ -132,3 +132,58 @@ export const sendMailFromFirestore = functions.firestore
       });
     }
   });
+
+/**
+ * Daily scheduled job: auto-expire subscriptions.
+ * Runs every day at 02:00 UTC.
+ * Sets status:'inactive' for profiles where
+ * today >= createdAt + 90 + offsetDays.
+ */
+export const checkSubscriptionExpiry = functions.pubsub
+  .schedule("0 2 * * *")
+  .timeZone("UTC")
+  .onRun(async () => {
+    const db = admin.firestore();
+    const now = Date.now();
+
+    const snapshot = await db
+      .collection("profiles")
+      .where("status", "==", "active")
+      .get();
+
+    const batch = db.batch();
+    let expiredCount = 0;
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+
+      // Parse createdAt — Firestore Timestamp or ISO string
+      let createdMs: number | null = null;
+      if (data.createdAt && typeof data.createdAt.toMillis === "function") {
+        createdMs = data.createdAt.toMillis();
+      } else if (typeof data.createdAt === "string") {
+        const d = new Date(data.createdAt);
+        if (!isNaN(d.getTime())) createdMs = d.getTime();
+      }
+
+      if (!createdMs) return;
+
+      const offsetDays: number = data.offsetDays || 0;
+      const expiryMs = createdMs + (90 + offsetDays) * 24 * 60 * 60 * 1000;
+
+      if (now >= expiryMs) {
+        batch.update(docSnap.ref, {status: "inactive"});
+        expiredCount++;
+        console.log(
+          `Expired: ${docSnap.id} (offset: ${offsetDays})`
+        );
+      }
+    });
+
+    if (expiredCount > 0) {
+      await batch.commit();
+    }
+
+    console.log(`Subscription check done. Expired: ${expiredCount}`);
+    return null;
+  });
