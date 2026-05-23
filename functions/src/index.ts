@@ -32,7 +32,7 @@ export const createPaymentIntent = functions.https.onCall(
           userId: context.auth.uid,
           email: context.auth.token.email || "",
         },
-        payment_method_types: ["card"],
+        automatic_payment_methods: {enabled: true},
       });
 
       return {

@@ -1,6 +1,7 @@
 import { loadStripe } from '@stripe/stripe-js';
 import {
   PaymentElement,
+  ExpressCheckoutElement,
   Elements,
   useStripe,
   useElements,
@@ -18,30 +19,66 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  const processPayment = async () => {
     if (!stripe || !elements) return;
 
     setLoading(true);
+    setErrorMessage(null);
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/feed`,
-      },
-      redirect: 'if_required',
-    });
-
-    if (error) {
-      setErrorMessage(error.message || 'An error occurred during payment.');
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      setErrorMessage(submitError.message || 'An error occurred.');
       setLoading(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      if (typeof (window as any).fbq === 'function') {
-        (window as any).fbq('track', 'Purchase', { value: 49, currency: 'EUR' });
-      }
-      onPaymentSuccess();
+      return;
     }
+
+    try {
+      const createIntent = httpsCallable(functions, 'createPaymentIntent');
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timed out')), 10000)
+      );
+
+      const result = await Promise.race([
+        createIntent(),
+        timeoutPromise
+      ]) as { data: { clientSecret: string } };
+
+      const clientSecret = result.data?.clientSecret;
+      if (!clientSecret) throw new Error('No clientSecret returned');
+
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/feed`,
+        },
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        setErrorMessage(error.message || 'An error occurred during payment.');
+        setLoading(false);
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        if (typeof (window as any).fbq === 'function') {
+          (window as any).fbq('track', 'Purchase', { value: 49, currency: 'EUR' });
+        }
+        onPaymentSuccess();
+      }
+    } catch (err: any) {
+      console.warn('Error processing payment:', err);
+      if (window.location.hostname === 'localhost') {
+        setErrorMessage('Backend nije dostupan. Provjerite jeste li pokrenuli Firebase emulatore ili deployali funkcije.');
+      } else {
+        setErrorMessage('Trenutno ne možemo pokrenuti plaćanje. Molimo pokušajte kasnije.');
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await processPayment();
   };
 
   return (
@@ -52,7 +89,17 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
           <span>Sigurno Plaćanje</span>
         </div>
         
-        <PaymentElement options={{ wallets: { applePay: 'auto', googlePay: 'auto' } }} />
+        <div className="mb-6">
+          <ExpressCheckoutElement onConfirm={processPayment} />
+        </div>
+
+        <div className="relative flex items-center py-4 mb-2">
+          <div className="flex-grow border-t border-white/10"></div>
+          <span className="flex-shrink-0 mx-4 text-white/40 text-xs font-bold">ILI KARTICOM</span>
+          <div className="flex-grow border-t border-white/10"></div>
+        </div>
+
+        <PaymentElement options={{ wallets: { applePay: 'never', googlePay: 'never' } }} />
       </div>
 
       {errorMessage && (
@@ -72,72 +119,10 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
 };
 
 export default function StripePayment({ onSuccess }: { onSuccess: () => void }) {
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchIntent = async () => {
-      try {
-        const createIntent = httpsCallable(functions, 'createPaymentIntent');
-        
-        // Add a timeout to the fetch
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timed out')), 10000)
-        );
-
-        const result = await Promise.race([
-          createIntent(),
-          timeoutPromise
-        ]) as { data: { clientSecret: string } };
-
-        if (result.data?.clientSecret) {
-          setClientSecret(result.data.clientSecret);
-        } else {
-          throw new Error('No clientSecret returned');
-        }
-      } catch (err: any) {
-        console.warn('Error fetching PaymentIntent:', err);
-        
-        // If we're on localhost and the function fails (e.g. not deployed),
-        // we show a descriptive error so the user knows what to do.
-        if (window.location.hostname === 'localhost') {
-          setError('Backend nije dostupan. Provjerite jeste li pokrenuli Firebase emulatore ili deployali funkcije.');
-        } else {
-          setError('Trenutno ne možemo pokrenuti plaćanje. Molimo pokušajte kasnije.');
-        }
-      }
-    };
-
-    fetchIntent();
-  }, []);
-
-  if (error) {
-    return (
-      <div className="min-h-[200px] flex flex-col items-center justify-center border-2 border-red-500/20 rounded-xl p-8 text-center bg-red-500/5">
-        <p className="text-sm text-red-500 font-bold mb-2">POGREŠKA</p>
-        <p className="text-xs text-muted-foreground">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-4 text-xs font-bold text-primary hover:underline"
-        >
-          POKUŠAJ PONOVO
-        </button>
-      </div>
-    );
-  }
-
-  if (!clientSecret) {
-    return (
-      <div className="min-h-[200px] flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-xl p-8 text-center bg-black/20 animate-pulse">
-        <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">
-          Priprema sigurnog plaćanja...
-        </p>
-      </div>
-    );
-  }
-
   const options = {
-    clientSecret,
+    mode: 'payment' as const,
+    amount: 4900,
+    currency: 'eur',
     appearance: {
       theme: 'night' as const,
       variables: {
