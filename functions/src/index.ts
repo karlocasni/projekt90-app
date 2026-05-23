@@ -189,7 +189,8 @@ export const checkSubscriptionExpiry = functions.pubsub
   });
 
 /**
- * Sends a custom email verification link using the existing mail collection logic.
+ * Sends a custom email verification link using
+ * the existing mail collection logic.
  */
 export const sendCustomVerificationEmail = functions.https.onCall(
   async (data, context) => {
@@ -214,6 +215,7 @@ export const sendCustomVerificationEmail = functions.https.onCall(
         to: email,
         message: {
           subject: "Potvrdi svoju email adresu - Projekt90",
+          /* eslint-disable max-len */
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #161616; color: #ffffff; padding: 40px; border-radius: 20px;">
               <h1 style="color: #D4FF00; font-size: 24px; margin-bottom: 20px;">Dobrodošao u Projekt90 pleme!</h1>
@@ -227,10 +229,11 @@ export const sendCustomVerificationEmail = functions.https.onCall(
                 Ako nisi zatražio ovaj email, možeš ga slobodno ignorirati.
               </p>
             </div>
-          `
-        }
+          `,
+          /* eslint-enable max-len */
+        },
       });
-      return { success: true };
+      return {success: true};
     } catch (error) {
       console.error("Error sending custom verification email:", error);
       throw new functions.https.HttpsError(
