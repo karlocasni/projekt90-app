@@ -187,3 +187,56 @@ export const checkSubscriptionExpiry = functions.pubsub
     console.log(`Subscription check done. Expired: ${expiredCount}`);
     return null;
   });
+
+/**
+ * Sends a custom email verification link using the existing mail collection logic.
+ */
+export const sendCustomVerificationEmail = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be logged in to request verification."
+      );
+    }
+    const email = context.auth.token.email;
+    if (!email) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "User has no email."
+      );
+    }
+
+    try {
+      const link = await admin.auth().generateEmailVerificationLink(email);
+
+      await admin.firestore().collection("mail").add({
+        to: email,
+        message: {
+          subject: "Potvrdi svoju email adresu - Projekt90",
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #161616; color: #ffffff; padding: 40px; border-radius: 20px;">
+              <h1 style="color: #D4FF00; font-size: 24px; margin-bottom: 20px;">Dobrodošao u Projekt90 pleme!</h1>
+              <p style="font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
+                Da bismo bili sigurni da si to stvarno ti i kako bismo izbjegli lažne prijave, molimo te da potvrdiš svoju email adresu klikom na gumb ispod.
+              </p>
+              <a href="${link}" style="display: inline-block; background: #D4FF00; color: #000000; font-weight: bold; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-size: 16px;">
+                POTVRDI EMAIL
+              </a>
+              <p style="font-size: 14px; color: #888888; margin-top: 40px;">
+                Ako nisi zatražio ovaj email, možeš ga slobodno ignorirati.
+              </p>
+            </div>
+          `
+        }
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Error sending custom verification email:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Could not send verification email."
+      );
+    }
+  }
+);

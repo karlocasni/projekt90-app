@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Mail, Lock, User, ArrowRight } from 'lucide-react';
-import { auth, db } from '../../lib/firebase';
+import { auth, db, functions } from '../../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
-import { getWelcomeEmailHtml } from '../../lib/emailTemplate';
+import { doc, setDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -42,17 +42,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         // Postavi ime na Auth objektu kako bi radilo u %DISPLAY_NAME% predlošku
         await updateProfile(user, { displayName: finalUsername });
         
-        // Dodaj custom HTML mail u red čekanja (Firebase Trigger Email)
+        // Zatraži od cloud funkcije da generira i pošalje custom HTML verifikacijski link
         try {
-          await addDoc(collection(db, 'mail'), {
-            to: email,
-            message: {
-              subject: 'Dobrodošao u Projekt90 pleme!',
-              html: getWelcomeEmailHtml()
-            }
-          });
+          const sendCustomVerification = httpsCallable(functions, 'sendCustomVerificationEmail');
+          await sendCustomVerification();
         } catch (emailErr) {
-          console.error("Neuspjelo dodavanje emaila u red:", emailErr);
+          console.error("Neuspjelo slanje verifikacijskog emaila:", emailErr);
         }
         
         // Create profile in Firestore

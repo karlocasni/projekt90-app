@@ -7,7 +7,7 @@ import { UploadProvider } from './contexts/UploadContext';
 import UploadToast from './components/ui/UploadToast';
 import { auth } from './lib/firebase';
 import { signOut } from 'firebase/auth';
-import { ShieldCheck, LogOut } from 'lucide-react';
+import { ShieldCheck, LogOut, Mail } from 'lucide-react';
 
 const AppShell = lazy(() => import('./components/layout/AppShell'));
 const Feed = lazy(() => import('./pages/Feed'));
@@ -40,6 +40,43 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+
+  if (!user.emailVerified) {
+    return (
+      <Routes>
+        <Route path="*" element={
+          <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-full max-w-lg glass p-10 rounded-[3rem] border-primary/20 flex flex-col items-center">
+               <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8">
+                 <Mail className="w-10 h-10 text-primary" />
+               </div>
+               <h1 className="text-4xl font-black mb-4 uppercase tracking-tighter italic text-white">Provjeri Email</h1>
+               <p className="text-muted-foreground mb-8 max-w-md text-lg">
+                 Poslali smo ti sigurni link za potvrdu na <strong className="text-white">{user.email}</strong>.<br/><br/>
+                 Otvori taj email i klikni na link kako bi potvrdio da si to stvarno ti i nastavio sa svojom transformacijom.
+               </p>
+               <button 
+                 onClick={async () => {
+                   await auth.currentUser?.reload();
+                   window.location.reload();
+                 }} 
+                 className="w-full py-4 bg-primary text-black rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-lg mb-4"
+               >
+                 POTVRDIO SAM, NASTAVI
+               </button>
+               <button 
+                 onClick={() => signOut(auth)} 
+                 className="flex items-center justify-center gap-2 w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold transition-colors border border-white/10"
+               >
+                 <LogOut className="w-5 h-5" />
+                 <span>Odustani / Odjavi se</span>
+               </button>
+            </div>
+          </div>
+        } />
       </Routes>
     );
   }
