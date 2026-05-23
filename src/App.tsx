@@ -47,7 +47,8 @@ function AppRoutes() {
     );
   }
 
-  if (!user.emailVerified) {
+  // NEW CHECK: Prevent unverified users from proceeding, but SKIP for existing paid users and admins
+  if (!user.emailVerified && profile?.status !== 'active' && !profile?.isAdmin) {
     return (
       <Routes>
         <Route path="*" element={
