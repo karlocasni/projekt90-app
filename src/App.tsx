@@ -7,7 +7,9 @@ import { UploadProvider } from './contexts/UploadContext';
 import UploadToast from './components/ui/UploadToast';
 import { auth } from './lib/firebase';
 import { signOut } from 'firebase/auth';
-import { ShieldCheck, LogOut, Mail } from 'lucide-react';
+import { ShieldCheck, LogOut, Mail, Send } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './lib/firebase';
 
 const AppShell = lazy(() => import('./components/layout/AppShell'));
 const Feed = lazy(() => import('./pages/Feed'));
@@ -26,6 +28,7 @@ function AppRoutes() {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [resending, setResending] = useState(false);
 
   if (loading) {
     return (
@@ -58,15 +61,37 @@ function AppRoutes() {
                  Poslali smo ti sigurni link za potvrdu na <strong className="text-white">{user.email}</strong>.<br/><br/>
                  Otvori taj email i klikni na link kako bi potvrdio da si to stvarno ti i nastavio sa svojom transformacijom.
                </p>
-               <button 
-                 onClick={async () => {
-                   await auth.currentUser?.reload();
-                   window.location.reload();
-                 }} 
-                 className="w-full py-4 bg-primary text-black rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-lg mb-4"
-               >
-                 POTVRDIO SAM, NASTAVI
-               </button>
+               <div className="w-full flex gap-2 mb-4">
+                 <button 
+                   onClick={async () => {
+                     await auth.currentUser?.reload();
+                     window.location.reload();
+                   }} 
+                   className="flex-1 py-4 bg-primary text-black rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-lg"
+                 >
+                   POTVRDIO SAM
+                 </button>
+                 <button 
+                   onClick={async () => {
+                     setResending(true);
+                     try {
+                       const sendCustomVerification = httpsCallable(functions, 'sendCustomVerificationEmail');
+                       await sendCustomVerification();
+                       alert('Novi email je poslan! Provjeri Inbox i Spam.');
+                     } catch (err) {
+                       alert('Greška pri slanju. Pokušaj ponovo kasnije.');
+                     } finally {
+                       setResending(false);
+                     }
+                   }}
+                   disabled={resending}
+                   className="flex-1 py-4 bg-white/10 text-white rounded-2xl font-bold text-sm hover:bg-white/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                 >
+                   <Send className="w-4 h-4" />
+                   {resending ? 'ŠALJEM...' : 'POŠALJI PONOVO'}
+                 </button>
+               </div>
+               
                <button 
                  onClick={() => signOut(auth)} 
                  className="flex items-center justify-center gap-2 w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold transition-colors border border-white/10"
