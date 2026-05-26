@@ -19,17 +19,19 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const processPayment = async () => {
+  const processPayment = async (isExpress = false) => {
     if (!stripe || !elements) return;
 
     setLoading(true);
     setErrorMessage(null);
 
-    const { error: submitError } = await elements.submit();
-    if (submitError) {
-      setErrorMessage(submitError.message || 'An error occurred.');
-      setLoading(false);
-      return;
+    if (!isExpress) {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setErrorMessage(submitError.message || 'An error occurred.');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -78,7 +80,7 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    await processPayment();
+    await processPayment(false);
   };
 
   return (
@@ -90,7 +92,7 @@ const CheckoutForm = ({ onPaymentSuccess }: { onPaymentSuccess: () => void }) =>
         </div>
         
         <div className="mb-6">
-          <ExpressCheckoutElement onConfirm={processPayment} />
+          <ExpressCheckoutElement onConfirm={() => processPayment(true)} />
         </div>
 
         <div className="relative flex items-center py-4 mb-2">
