@@ -5,7 +5,7 @@ import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
 import { getFunctions } from 'firebase/functions';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBJEcvvyf9niYfdrU6DYXqvwCLN0NtlVjk",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "projekt90app.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "projekt90app",

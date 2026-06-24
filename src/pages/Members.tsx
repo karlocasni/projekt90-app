@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Copy, Check } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { Users, Copy, Check, UserPlus, X, ShieldAlert } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { db, firebaseConfig } from '../lib/firebase';
 import { UserProfile } from '../types/post';
 import XPBadge from '../components/ui/XPBadge';
 import { useAuth } from '../contexts/AuthContext';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
 interface MemberEntry {
   uid: string;
@@ -41,12 +43,86 @@ function formatJoinDate(createdAt: unknown): string {
 }
 
 export default function Members() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, profile: currentProfile } = useAuth();
   const [members, setMembers] = useState<MemberEntry[]>([]);
   const [allProfiles, setAllProfiles] = useState<MemberEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Form states for creating a new user
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addUsername, setAddUsername] = useState('');
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addGender, setAddGender] = useState<'male' | 'female'>('male');
+  const [addStatus, setAddStatus] = useState<'active' | 'inactive'>('active');
+  const [addingUser, setAddingUser] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddingUser(true);
+    setAddError(null);
+    setAddSuccess(null);
+
+    let tempApp;
+    try {
+      // 1. Create a unique secondary Firebase app
+      const appName = `temp-app-${Date.now()}`;
+      tempApp = initializeApp(firebaseConfig, appName);
+      const tempAuth = getAuth(tempApp);
+
+      // 2. Create the user in Auth using the temporary instance
+      const userCredential = await createUserWithEmailAndPassword(
+        tempAuth,
+        addEmail.trim(),
+        addPassword
+      );
+      const newUid = userCredential.user.uid;
+
+      // 3. Create the user profile document in Firestore using the admin's Firestore connection
+      await setDoc(doc(db, 'profiles', newUid), {
+        username: addUsername.trim(),
+        email: addEmail.trim().toLowerCase(),
+        gender: addGender,
+        status: addStatus,
+        createdAt: new Date().toISOString(),
+        xp: 0,
+        level: 1,
+      });
+
+      // 4. Clean up temp Auth session
+      await signOut(tempAuth);
+
+      setAddSuccess(`Korisnik ${addUsername} uspješno kreiran!`);
+      // Reset form
+      setAddUsername('');
+      setAddEmail('');
+      setAddPassword('');
+      setAddGender('male');
+      setAddStatus('active');
+    } catch (err: any) {
+      console.error(err);
+      let errMsg = err.message || 'Greška pri kreiranju korisnika.';
+      if (err.code === 'auth/email-already-in-use') {
+        errMsg = 'Korisnik s ovim emailom već postoji.';
+      } else if (err.code === 'auth/weak-password') {
+        errMsg = 'Lozinka mora imati barem 6 znakova.';
+      }
+      setAddError(errMsg);
+    } finally {
+      if (tempApp) {
+        try {
+          await deleteApp(tempApp);
+        } catch (delErr) {
+          console.error('Error deleting temp app:', delErr);
+        }
+      }
+      setAddingUser(false);
+    }
+  };
 
   const unpaidEmails = allProfiles
     .filter((m) => m.status !== 'active' && m.email)
@@ -110,15 +186,24 @@ export default function Members() {
 
   return (
     <div className="py-6 px-4 md:px-0 space-y-4">
-      <div className="flex items-center gap-3 px-2">
-        <Users className="w-6 h-6 text-primary" />
-        <h1 className="font-heading font-black text-3xl uppercase tracking-tighter">ČLANOVI</h1>
-        {!loading && (
-          <span className="text-xs font-bold ml-auto flex items-center gap-2">
-            <span className="px-2 py-0.5 bg-primary/15 text-primary rounded-full border border-primary/30">
+      <div className="flex items-center justify-between gap-3 px-2">
+        <div className="flex items-center gap-3">
+          <Users className="w-6 h-6 text-primary" />
+          <h1 className="font-heading font-black text-3xl uppercase tracking-tighter">ČLANOVI</h1>
+          {!loading && (
+            <span className="px-2 py-0.5 bg-primary/15 text-primary rounded-full border border-primary/30 text-xs font-bold">
               {members.length} platilo
             </span>
-          </span>
+          )}
+        </div>
+        {currentProfile?.isAdmin && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-primary/10"
+          >
+            <UserPlus className="w-4 h-4" />
+            Dodaj Člana
+          </button>
         )}
       </div>
 
@@ -195,6 +280,127 @@ export default function Members() {
               </Link>
             );
           })}
+        </div>
+      )}
+      {/* User Creation Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-md" 
+            onClick={() => setShowAddModal(false)}
+          />
+          <div className="relative w-full max-w-md bg-[#161616] border border-white/10 rounded-[2.5rem] p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <button
+              onClick={() => {
+                setShowAddModal(false);
+                setAddError(null);
+                setAddSuccess(null);
+              }}
+              className="absolute top-5 right-5 p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-white/70 hover:text-white transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-heading font-black uppercase tracking-tighter text-white">Dodaj Novog Člana</h2>
+            </div>
+
+            {addError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-xs flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                <span>{addError}</span>
+              </div>
+            )}
+
+            {addSuccess && (
+              <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold">
+                {addSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                  Korisničko ime (Ime i Prezime)
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="npr. Dragan Raič"
+                  value={addUsername}
+                  onChange={(e) => setAddUsername(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-primary focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                  Email adresa
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="npr. dragan@gmail.com"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-primary focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                  Lozinka
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Barem 6 znakova"
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-primary focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                    Spol
+                  </label>
+                  <select
+                    value={addGender}
+                    onChange={(e) => setAddGender(e.target.value as 'male' | 'female')}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none transition-colors appearance-none"
+                  >
+                    <option value="male" className="bg-[#161616]">Muški</option>
+                    <option value="female" className="bg-[#161616]">Ženski</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                    Status Profila
+                  </label>
+                  <select
+                    value={addStatus}
+                    onChange={(e) => setAddStatus(e.target.value as 'active' | 'inactive')}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none transition-colors appearance-none"
+                  >
+                    <option value="active" className="bg-[#161616]">Aktivno</option>
+                    <option value="inactive" className="bg-[#161616]">Neaktivno</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={addingUser}
+                className="w-full py-3 bg-primary text-black rounded-xl font-heading font-black text-sm uppercase tracking-wider hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 mt-2 cursor-pointer shadow-lg shadow-primary/10"
+              >
+                {addingUser ? 'Kreiranje...' : 'Kreiraj Korisnika'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
