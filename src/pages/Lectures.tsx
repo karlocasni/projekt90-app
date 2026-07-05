@@ -147,6 +147,12 @@ export default function Lectures() {
 
   const getSignupDate = (): Date => {
     if (!profile?.createdAt) return new Date();
+    
+    // Handle Firestore Timestamp objects
+    if (typeof profile.createdAt === 'object' && 'seconds' in profile.createdAt) {
+      return new Date((profile.createdAt as any).seconds * 1000);
+    }
+    
     const parsed = new Date(profile.createdAt);
     return isNaN(parsed.getTime()) ? new Date() : parsed;
   };
@@ -157,11 +163,9 @@ export default function Lectures() {
   };
 
   const isLocked = (days: number): boolean => {
-    if (profile?.isAdmin) return false;
-    if (days <= 0) return false;
-    if (!profile?.createdAt) return false;
-    const unlockDate = getUnlockDate(days);
-    return new Date() < unlockDate;
+    // Locked feature has been removed/disabled as requested.
+    // If you wish to re-enable, change this to return new Date() < getUnlockDate(days);
+    return false;
   };
 
   const getTimeRemaining = (days: number): string => {
