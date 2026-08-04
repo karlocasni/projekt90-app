@@ -231,16 +231,16 @@ export default function Feed() {
 
 
         {challenges.filter(c => c.active).map(c => (
-          <div key={c.id} className="ursa-card p-4 border-l-4 border-l-primary bg-primary/5 flex items-start gap-4">
+          <Link key={c.id} to="/challenges" className="ursa-card p-4 border-l-4 border-l-primary bg-primary/5 flex items-start gap-4 hover:bg-primary/10 transition-colors cursor-pointer">
             <div className="bg-primary/20 p-2 rounded-full mt-1">
               <Trophy className="w-5 h-5 text-primary" />
             </div>
             <div>
               <span className="text-[10px] font-black uppercase text-primary tracking-widest block mb-1">Aktivni Izazov</span>
-              <h3 className="font-bold text-lg mb-1 leading-tight">{c.title}</h3>
+              <h3 className="font-bold text-lg mb-1 leading-tight text-white">{c.title}</h3>
               <p className="text-sm text-muted-foreground">{c.description}</p>
             </div>
-          </div>
+          </Link>
         ))}
 
         <div className="space-y-4">

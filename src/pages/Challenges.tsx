@@ -25,6 +25,7 @@ interface Challenge {
   winnerMessage?: string;
   winnerMediaUrl?: string;
   winnerAnnouncement?: string;
+  winnerIds?: string[];
 }
 
 interface Submission {
@@ -36,6 +37,7 @@ interface Submission {
   message: string;
   mediaUrl?: string | null;
   mediaType?: 'image' | 'video';
+  mediaUrls?: string[];
   createdAt: Timestamp;
   isWinner?: boolean;
 }
@@ -55,7 +57,7 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
   const { user, profile } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [message, setMessage] = useState('');
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -76,12 +78,18 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
     });
   }, [challenge.id]);
 
-  const handleMediaSelect = async (file: File, type: 'image' | 'video') => {
+  const handleMediaSelect = async (files: FileList, type: 'image' | 'video') => {
     setError(null);
     try {
-      if (type === 'video') await validateVideo(file, !!profile?.isAdmin);
-      setMediaFile(file);
-      setMediaType(type);
+      if (type === 'video') {
+         await validateVideo(files[0], !!profile?.isAdmin);
+         setMediaFiles([files[0]]);
+         setMediaType(type);
+      } else {
+         const newFiles = Array.from(files);
+         setMediaFiles(prev => [...prev, ...newFiles]);
+         setMediaType(type);
+      }
     } catch (e: any) {
       setError(e.message);
     }
@@ -93,30 +101,43 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
     setError(null);
     try {
       let mediaUrl: string | null = null;
+      let mediaUrls: string[] = [];
       let finalType = mediaType;
 
-      if (mediaFile && mediaType) {
+      if (mediaFiles.length > 0 && mediaType) {
         setUploading(true);
-        let blob: Blob | File = mediaFile;
         if (mediaType === 'image') {
-          blob = await compressImage(mediaFile);
+           for (let i = 0; i < mediaFiles.length; i++) {
+             const blob = await compressImage(mediaFiles[i]);
+             const path = `challenge-submissions/${challenge.id}/${user.uid}_${Date.now()}_${i}`;
+             const storageRef = ref(storage, path);
+             await new Promise<void>((res, rej) => {
+               const task = uploadBytesResumable(storageRef, blob);
+               task.on('state_changed',
+                 (s) => setUploadProgress(Math.round((s.bytesTransferred / s.totalBytes) * 100)),
+                 rej, () => res()
+               );
+             });
+             const url = await getDownloadURL(storageRef);
+             mediaUrls.push(url);
+           }
+           if (mediaUrls.length === 1) mediaUrl = mediaUrls[0];
         } else if (mediaType === 'video') {
-          blob = await compressVideo(mediaFile, (p) => setUploadProgress(Math.floor(p / 2)));
+           const blob = await compressVideo(mediaFiles[0], (p) => setUploadProgress(Math.floor(p / 2)));
+           const path = `challenge-submissions/${challenge.id}/${user.uid}_${Date.now()}`;
+           const storageRef = ref(storage, path);
+           await new Promise<void>((res, rej) => {
+             const task = uploadBytesResumable(storageRef, blob);
+             task.on('state_changed',
+               (s) => {
+                 const uP = Math.round(s.bytesTransferred / s.totalBytes * 100);
+                 setUploadProgress(50 + Math.floor(uP / 2));
+               },
+               rej, () => res()
+             );
+           });
+           mediaUrl = await getDownloadURL(storageRef);
         }
-
-        const path = `challenge-submissions/${challenge.id}/${user.uid}_${Date.now()}`;
-        const storageRef = ref(storage, path);
-        await new Promise<void>((res, rej) => {
-          const task = uploadBytesResumable(storageRef, blob);
-          task.on('state_changed',
-            (s) => {
-              const uP = Math.round(s.bytesTransferred / s.totalBytes * 100);
-              setUploadProgress(mediaType === 'video' ? 50 + Math.floor(uP / 2) : uP);
-            },
-            rej, () => res()
-          );
-        });
-        mediaUrl = await getDownloadURL(storageRef);
         setUploading(false);
       }
 
@@ -127,13 +148,14 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
         authorAvatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
         message: message.trim(),
         mediaUrl,
+        mediaUrls,
         mediaType: finalType,
         createdAt: serverTimestamp(),
         isWinner: false,
       });
 
       setMessage('');
-      setMediaFile(null);
+      setMediaFiles([]);
       setMediaType(null);
       setUploadProgress(0);
     } catch (e: any) {
@@ -144,21 +166,32 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
     }
   };
 
+  const winners = submissions.filter(s => s.isWinner);
+  const hasAnyWinner = winners.length > 0 || !!challenge.winnerId;
+
   const pickWinner = async (sub: Submission) => {
     if (!profile?.isAdmin) return;
+    if (winners.length >= 5) {
+       alert('Maksimalno 5 pobjednika!');
+       return;
+    }
     if (!window.confirm(`Proglasi ${sub.authorName} pobjednikom?`)) return;
+
+    const newWinnerIds = [...(challenge.winnerIds || [])];
+    if (challenge.winnerId && !newWinnerIds.includes(challenge.winnerId)) {
+        newWinnerIds.push(challenge.winnerId);
+    }
+    if (!newWinnerIds.includes(sub.authorId)) {
+        newWinnerIds.push(sub.authorId);
+    }
+
     await updateDoc(doc(db, 'challenges', challenge.id), {
-      winnerId: sub.authorId,
-      winnerName: sub.authorName,
-      winnerMessage: sub.message,
-      winnerMediaUrl: sub.mediaUrl || null,
-      winnerAnnouncement: announcementText,
+      winnerIds: newWinnerIds,
+      winnerAnnouncement: announcementText || challenge.winnerAnnouncement || '',
     });
     await updateDoc(doc(db, 'challenges', challenge.id, 'submissions', sub.id), { isWinner: true });
     alert('Pobjednik proglašen!');
   };
-
-  const winner = challenge.winnerId ? submissions.find(s => s.isWinner) || null : null;
 
   return (
     <div className="max-w-3xl mx-auto py-6 px-4 md:px-0">
@@ -189,29 +222,41 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
       </div>
 
       {/* Winner banner */}
-      {challenge.winnerId && (
+      {hasAnyWinner && (
         <div className="ursa-card p-6 mb-6 border border-yellow-500/30 bg-yellow-500/5">
           <div className="flex items-center gap-3 mb-3">
             <div className="bg-yellow-500/20 p-2 rounded-full"><Crown className="w-5 h-5 text-yellow-400" /></div>
             <div>
-              <span className="text-[10px] font-black uppercase text-yellow-400 tracking-widest block">🏆 Pobjednik izazova!</span>
-              <span className="font-black text-lg text-white">{challenge.winnerName}</span>
+              <span className="text-[10px] font-black uppercase text-yellow-400 tracking-widest block">🏆 Pobjednici izazova!</span>
             </div>
           </div>
           {challenge.winnerAnnouncement && (
-            <p className="text-muted-foreground text-sm italic mb-3">„{challenge.winnerAnnouncement}"</p>
+            <p className="text-muted-foreground text-sm italic mb-4">„{challenge.winnerAnnouncement}"</p>
           )}
-          {challenge.winnerMessage && <p className="text-white/80 text-sm mb-3">{challenge.winnerMessage}</p>}
-          {challenge.winnerMediaUrl && (
-            winner?.mediaType === 'video'
-              ? <video src={challenge.winnerMediaUrl} className="rounded-xl w-full max-h-80 object-cover" controls playsInline />
-              : <img src={challenge.winnerMediaUrl} className="rounded-xl w-full max-h-80 object-cover" alt="Winner" />
-          )}
+
+          <div className="space-y-6">
+            {winners.map(w => (
+              <div key={w.id} className="border-t border-yellow-500/20 pt-4">
+                 <span className="font-black text-lg text-white mb-2 block">{w.authorName}</span>
+                 {w.message && <p className="text-white/80 text-sm mb-3">{w.message}</p>}
+                 {w.mediaType === 'video' && w.mediaUrl && (
+                   <video src={w.mediaUrl} className="rounded-xl w-full max-h-80 object-cover" controls playsInline />
+                 )}
+                 {w.mediaType === 'image' && (
+                   <div className="flex gap-2 overflow-x-auto pb-2">
+                     {(w.mediaUrls?.length ? w.mediaUrls : w.mediaUrl ? [w.mediaUrl] : []).map((url, i) => (
+                       <img key={i} src={url} className="rounded-xl max-h-80 object-cover flex-shrink-0" alt="Winner" />
+                     ))}
+                   </div>
+                 )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Admin: set winner announcement text */}
-      {profile?.isAdmin && !challenge.winnerId && (
+      {profile?.isAdmin && winners.length < 5 && (
         <div className="ursa-card p-4 mb-6 border border-primary/20 bg-primary/5">
           <p className="text-xs font-black text-primary uppercase mb-2">Admin: tekst objave pobjednika</p>
           <textarea
@@ -225,7 +270,7 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
       )}
 
       {/* Submit form */}
-      {!deadlinePassed && !challenge.winnerId && (
+      {!deadlinePassed && !hasAnyWinner && (
         <div className="ursa-card p-6 mb-6">
           <h2 className="font-black text-sm uppercase tracking-widest mb-4 text-primary">Pošalji prijavu</h2>
           <textarea
@@ -237,15 +282,26 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
           />
 
           {/* Media preview */}
-          {mediaFile && mediaType && (
-            <div className="relative inline-block mb-3">
+          {mediaFiles.length > 0 && mediaType && (
+            <div className="flex gap-2 overflow-x-auto mb-3 pb-2">
               {mediaType === 'image'
-                ? <img src={URL.createObjectURL(mediaFile)} className="h-24 rounded-xl object-cover" alt="" />
-                : <video src={URL.createObjectURL(mediaFile)} className="h-24 rounded-xl object-cover" muted />
+                ? mediaFiles.map((file, i) => (
+                  <div key={i} className="relative inline-block flex-shrink-0">
+                    <img src={URL.createObjectURL(file)} className="h-24 rounded-xl object-cover" alt="" />
+                    <button onClick={() => setMediaFiles(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))
+                : (
+                  <div className="relative inline-block flex-shrink-0">
+                    <video src={URL.createObjectURL(mediaFiles[0])} className="h-24 rounded-xl object-cover" muted />
+                    <button onClick={() => { setMediaFiles([]); setMediaType(null); }} className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
               }
-              <button onClick={() => { setMediaFile(null); setMediaType(null); }} className="absolute -top-1 -right-1 bg-black/80 rounded-full p-0.5">
-                <X className="w-3 h-3" />
-              </button>
             </div>
           )}
 
@@ -274,8 +330,8 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
               {submitting ? 'Slanje...' : 'Pošalji'} <Send className="w-3.5 h-3.5" />
             </button>
           </div>
-          <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaSelect(f, 'image'); e.target.value = ''; }} />
-          <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaSelect(f, 'video'); e.target.value = ''; }} />
+          <input ref={imageRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { const f = e.target.files; if (f?.length) handleMediaSelect(f, 'image'); e.target.value = ''; }} />
+          <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={e => { const f = e.target.files; if (f?.length) handleMediaSelect(f, 'video'); e.target.value = ''; }} />
         </div>
       )}
 
@@ -300,7 +356,7 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
                 </div>
                 <p className="text-white/80 text-sm mt-1">{sub.message}</p>
               </div>
-              {profile?.isAdmin && !challenge.winnerId && (
+              {profile?.isAdmin && winners.length < 5 && !sub.isWinner && (
                 <button
                   onClick={() => pickWinner(sub)}
                   className="flex items-center gap-1.5 text-[10px] font-black text-yellow-400 border border-yellow-400/30 px-3 py-1.5 rounded-full hover:bg-yellow-400/10 transition-colors flex-shrink-0"
@@ -309,10 +365,15 @@ function ChallengeDetail({ challenge, onBack }: { challenge: Challenge; onBack: 
                 </button>
               )}
             </div>
-            {sub.mediaUrl && (
-              sub.mediaType === 'video'
-                ? <video src={`${sub.mediaUrl}#t=0.001`} className="rounded-xl w-full max-h-64 object-cover mt-2 bg-black" controls playsInline preload="metadata" />
-                : <img src={sub.mediaUrl} className="rounded-xl w-full max-h-64 object-cover mt-2" alt="" loading="lazy" />
+            {sub.mediaType === 'video' && sub.mediaUrl && (
+              <video src={`${sub.mediaUrl}#t=0.001`} className="rounded-xl w-full max-h-64 object-cover mt-2 bg-black" controls playsInline preload="metadata" />
+            )}
+            {sub.mediaType === 'image' && (
+              <div className="flex gap-2 overflow-x-auto mt-2 pb-2">
+                {(sub.mediaUrls?.length ? sub.mediaUrls : sub.mediaUrl ? [sub.mediaUrl] : []).map((url, i) => (
+                  <img key={i} src={url} className="rounded-xl max-h-64 object-cover flex-shrink-0" alt="" loading="lazy" />
+                ))}
+              </div>
             )}
           </div>
         ))}
@@ -454,7 +515,7 @@ export default function Challenges() {
         <div className="grid gap-4">
           {challenges.map(c => {
             const deadlinePassed = isPast(c.deadline);
-            const hasWinner = !!c.winnerId;
+            const hasWinner = (c.winnerIds && c.winnerIds.length > 0) || !!c.winnerId;
             return (
               <div
                 key={c.id}
@@ -469,7 +530,7 @@ export default function Challenges() {
                       <div className="flex flex-wrap gap-2 mb-2">
                         {hasWinner && (
                           <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full bg-yellow-500/20 text-yellow-400">
-                            <Crown className="w-3 h-3" /> Pobjednik proglašen
+                            <Crown className="w-3 h-3" /> Pobjednici proglašeni
                           </span>
                         )}
                         {!hasWinner && !c.active && (
