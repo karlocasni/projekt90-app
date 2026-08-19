@@ -197,13 +197,70 @@ export default function Members() {
           )}
         </div>
         {currentProfile?.isAdmin && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-primary/10"
-          >
-            <UserPlus className="w-4 h-4" />
-            Dodaj Člana
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (!window.confirm('Ovo će produžiti pretplatu svima kojima istječe prije 20.8.2026. na 20.8.2026. Nastaviti?')) return;
+                setLoading(true);
+                try {
+                  const { collection, getDocs, doc, writeBatch } = await import('firebase/firestore');
+                  const snap = await getDocs(collection(db, 'profiles'));
+                  
+                  const batch = writeBatch(db);
+                  let updatedCount = 0;
+                  
+                  const targetDateMs = new Date('2026-08-20T23:59:59+02:00').getTime();
+                  
+                  snap.docs.forEach(d => {
+                    const data = d.data();
+                    if (data.isAdmin) return; // skip admins
+                    
+                    let createdMs = 0;
+                    if (data.createdAt && typeof data.createdAt === 'object' && 'seconds' in data.createdAt) {
+                      createdMs = data.createdAt.seconds * 1000;
+                    } else if (typeof data.createdAt === 'string') {
+                      const parsed = new Date(data.createdAt);
+                      if (!isNaN(parsed.getTime())) createdMs = parsed.getTime();
+                    }
+                    
+                    if (createdMs > 0) {
+                      const currentOffset = data.offsetDays || 0;
+                      const currentExpiryMs = createdMs + ((90 + currentOffset) * 24 * 60 * 60 * 1000);
+                      
+                      if (currentExpiryMs < targetDateMs) {
+                        const extraDaysNeeded = Math.ceil((targetDateMs - currentExpiryMs) / (1000 * 60 * 60 * 24));
+                        const newOffset = currentOffset + extraDaysNeeded;
+                        
+                        batch.update(d.ref, { 
+                          offsetDays: newOffset,
+                          status: 'active' 
+                        });
+                        updatedCount++;
+                      }
+                    }
+                  });
+                  
+                  await batch.commit();
+                  alert(`Uspješno produžena pretplata za ${updatedCount} korisnika!`);
+                } catch(err) {
+                  console.error(err);
+                  alert('Greška pri ažuriranju: ' + err);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-yellow-500/20"
+            >
+              FIX 20.8. PRETP.
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-primary/10"
+            >
+              <UserPlus className="w-4 h-4" />
+              Dodaj Člana
+            </button>
+          </div>
         )}
       </div>
 
