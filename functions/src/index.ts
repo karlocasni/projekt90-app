@@ -73,6 +73,7 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
     if (userId) {
       await admin.firestore().collection("profiles").doc(userId).set({
         status: "active",
+        hasPaid: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
     }
@@ -243,4 +244,68 @@ export const sendCustomVerificationEmail = functions.https.onCall(
     }
   }
 );
+
+/**
+ * Daily scheduled job: cleanup unpaid accounts.
+ * Runs every day at 03:00 UTC.
+ * Deletes users from Firebase Auth and Firestore profiles if:
+ * status === 'inactive', xp === 0 (or missing), older than 72h, and hasPaid !== true.
+ */
+export const cleanupUnpaidAccounts = functions.pubsub
+  .schedule("0 3 * * *")
+  .timeZone("UTC")
+  .onRun(async () => {
+    const db = admin.firestore();
+    const now = Date.now();
+    const limitMs = 72 * 60 * 60 * 1000; // 72 hours
+
+    const snapshot = await db
+      .collection("profiles")
+      .where("status", "==", "inactive")
+      .get();
+
+    let deletedCount = 0;
+
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+
+      // Don't delete if they actually paid at some point
+      if (data.hasPaid === true) continue;
+      // Don't delete if they earned XP (very likely paid in the past)
+      if (data.xp && data.xp > 0) continue;
+      if (data.isAdmin) continue;
+
+      let createdMs: number | null = null;
+      if (data.createdAt && typeof data.createdAt.toMillis === "function") {
+        createdMs = data.createdAt.toMillis();
+      } else if (typeof data.createdAt === "string") {
+        const d = new Date(data.createdAt);
+        if (!isNaN(d.getTime())) createdMs = d.getTime();
+      }
+
+      if (!createdMs) continue;
+
+      const ageMs = now - createdMs;
+      if (ageMs > limitMs) {
+        try {
+          // Delete from Auth
+          await admin.auth().deleteUser(docSnap.id);
+          // Delete from Firestore
+          await docSnap.ref.delete();
+          deletedCount++;
+          console.log(`Deleted unpaid user: ${docSnap.id}`);
+        } catch (err: any) {
+          console.error(`Error deleting user ${docSnap.id}:`, err);
+          // If auth user not found, we can still delete the doc
+          if (err && err.code === 'auth/user-not-found') {
+             await docSnap.ref.delete();
+             console.log(`Deleted dangling profile doc: ${docSnap.id}`);
+          }
+        }
+      }
+    }
+
+    console.log(`Cleanup done. Deleted: ${deletedCount}`);
+    return null;
+  });
 

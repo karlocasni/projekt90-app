@@ -153,9 +153,11 @@ export default function Members() {
                 level: data.level ?? 1,
                 createdAt: data.createdAt ?? '',
                 status: data.status || 'inactive',
+                hasPaid: (data as any).hasPaid,
+                isAdmin: data.isAdmin,
               };
             })
-            .filter((m) => m.status === 'active'),
+            .filter((m) => m.status === 'active' || m.xp > 0 || m.hasPaid || m.isAdmin),
         );
         setAllProfiles(
           snapshot.docs.map((d) => {

@@ -144,40 +144,27 @@ function AppRoutes() {
                 <ShieldCheck className="w-10 h-10 text-primary" />
               </div>
               <h1 className="text-4xl font-black mb-4 uppercase tracking-tighter italic text-white">
-                {isTimeLocked ? 'Pristup Istekao' : 'Pristup Zatvoren'}
+                {isTimeLocked ? 'Pristup Istekao' : 'Započni Svoj Put'}
               </h1>
               <p className="text-muted-foreground mb-10 text-lg">
                 {isTimeLocked 
                   ? 'Tvojih 90 dana je prošlo. Za nastavak transformacije i pristup zajednici, obnovi svoje članstvo.'
-                  : 'Registracije za nove članove su trenutno zatvorene.'}
+                  : 'Spreman si! Odaberi metodu plaćanja ispod i započni svojih 90 dana transformacije.'}
               </p>
               
-              {isTimeLocked ? (
-                <div className="bg-black/20 p-8 rounded-3xl border border-white/5 mb-8 w-full">
-                  <Suspense fallback={
-                    <div className="min-h-[200px] flex items-center justify-center">
-                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  }>
-                    <StripePayment onSuccess={() => setIsSessionActive(true)} />
-                  </Suspense>
-                </div>
-              ) : (
-                <div className="bg-white/5 p-8 rounded-3xl border border-white/10 mb-8 space-y-4 w-full">
-                  <p className="text-muted-foreground text-base leading-relaxed">
-                    Hvala ti na interesu! Trenutno ne primamo nove uplate kako bismo se u potpunosti posvetili radu s postojećim članovima i osigurali im najbolje moguće rezultate.
-                  </p>
-                  <p className="text-primary font-bold uppercase text-sm tracking-wider">
-                    Uskoro otvaramo prijave i kupnju pristupa!
-                  </p>
-                </div>
-              )}
+              <div className="bg-black/20 p-8 rounded-3xl border border-white/5 mb-8 w-full">
+                <Suspense fallback={
+                  <div className="min-h-[200px] flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                }>
+                  <StripePayment onSuccess={() => setIsSessionActive(true)} />
+                </Suspense>
+              </div>
 
-              {isTimeLocked && (
-                <p className="text-sm text-muted-foreground mb-6">
-                  Jednokratna uplata od 49€. Bez pretplate.
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground mb-6">
+                Jednokratna uplata od 49€. Bez pretplate.
+              </p>
 
               <button
                 onClick={() => signOut(auth)}
