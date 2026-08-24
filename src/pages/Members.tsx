@@ -8,6 +8,7 @@ import XPBadge from '../components/ui/XPBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import PaymentChart from '../components/analytics/PaymentChart';
 
 interface MemberEntry {
   uid: string;
@@ -18,6 +19,7 @@ interface MemberEntry {
   createdAt: unknown;
   status: string;
   email?: string;
+  hasPaid?: boolean;
 }
 
 function formatJoinDate(createdAt: unknown): string {
@@ -157,7 +159,7 @@ export default function Members() {
                 isAdmin: data.isAdmin,
               };
             })
-            .filter((m) => m.status === 'active' || m.xp > 0 || m.hasPaid || m.isAdmin),
+            .filter((m) => m.status === 'active'),
         );
         setAllProfiles(
           snapshot.docs.map((d) => {
@@ -171,6 +173,7 @@ export default function Members() {
               createdAt: data.createdAt ?? '',
               status: data.status || 'inactive',
               email: data.email || '',
+              hasPaid: (data as any).hasPaid,
             };
           }),
         );
@@ -194,7 +197,7 @@ export default function Members() {
           <h1 className="font-heading font-black text-3xl uppercase tracking-tighter">ČLANOVI</h1>
           {!loading && (
             <span className="px-2 py-0.5 bg-primary/15 text-primary rounded-full border border-primary/30 text-xs font-bold">
-              {members.length} platilo
+              {members.length} aktivnih
             </span>
           )}
         </div>
@@ -265,6 +268,8 @@ export default function Members() {
           </div>
         )}
       </div>
+
+      {!loading && <PaymentChart allProfiles={allProfiles} />}
 
       {/* Copy unpaid emails button */}
       {!loading && unpaidEmails.length > 0 && (
