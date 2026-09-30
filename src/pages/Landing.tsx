@@ -169,15 +169,15 @@ export default function Landing() {
               ].map((item, i) => (
                 <div key={i} className="flex justify-between items-center p-4 glass rounded-xl border-white/5">
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
                     <span className="font-bold text-sm md:text-base">{item.title}</span>
                   </div>
-                  <span className="text-muted-foreground line-through decoration-red-500/50 text-sm md:text-base">{item.val}</span>
+                  <span className="text-white/70 font-semibold text-sm md:text-base bg-white/5 px-3 py-1 rounded-lg border border-white/5">{item.val}</span>
                 </div>
               ))}
               <div className="p-6 bg-primary/10 border border-primary/20 rounded-2xl flex justify-between items-center">
                 <span className="text-lg md:text-xl font-black uppercase">Ukupna Vrijednost:</span>
-                <span className="text-xl md:text-2xl font-black text-primary line-through">1,195€+</span>
+                <span className="text-xl md:text-2xl font-black text-primary">1,195€</span>
               </div>
             </div>
           </motion.div>
@@ -187,7 +187,7 @@ export default function Landing() {
             className="glass p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border-primary/30 shadow-[0_0_80px_rgba(190,242,100,0.15)] relative overflow-hidden sticky top-32"
           >
             <div className="absolute top-0 right-0 bg-primary text-black px-8 py-2 font-black rotate-45 translate-x-10 translate-y-6 text-xs md:text-base">
-              BEST OFFER
+              ALL-IN-ONE
             </div>
             
             <h3 className="text-2xl md:text-4xl font-black mb-2 uppercase">PROJEKT90 ČLANSTVO</h3>
@@ -454,6 +454,7 @@ export default function Landing() {
                 <li><a href="https://nemaneide.com/nema-neide-aplikacija-pravila-o-privatnosti/" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Uvjeti korištenja</a></li>
                 <li><a href="https://nemaneide.com/nema-neide-aplikacija-pravila-o-privatnosti/" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Privatnost</a></li>
                 <li><a href="https://nemaneide.com/nema-neide-aplikacija-pravila-o-privatnosti/" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Povrat novca</a></li>
+                <li><a href="https://drive.google.com/drive/folders/1FGcVhafKlnkaIztPCb91J3k2PSHizNwJ?usp=sharing" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">Cjenik</a></li>
               </ul>
               <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-muted-foreground font-medium">
                 <a href="tel:+385992088022" className="hover:text-primary transition-colors">+385 99 208 8022</a>
